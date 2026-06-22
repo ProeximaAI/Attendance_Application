@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Text } from '../../components/Themed';
 import { COLORS, SIZES } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -11,30 +11,20 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        {/* Header Gradient */}
-        <LinearGradient
-          colors={[COLORS.gradientPrimaryStart, COLORS.gradientPrimaryEnd]}
-          style={styles.headerGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
+        {/* Header View */}
+        <View style={[styles.headerGradient, { backgroundColor: COLORS.background }]}>
           <View style={styles.headerContent}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <MaterialCommunityIcons name="account" size={24} color={COLORS.text} />
+              <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} />
               <Text style={styles.headerTitle}>Profile</Text>
             </View>
-            <Text style={styles.headerSubtitle}>Personal & Work Info</Text>
+            <Text style={[styles.headerSubtitle, { color: COLORS.textMuted }]}>Personal & Work Info</Text>
           </View>
-        </LinearGradient>
+        </View>
 
         <View style={styles.content}>
           {/* Main User Card */}
-          <LinearGradient
-            colors={[COLORS.gradientPrimaryStart, COLORS.gradientPrimaryEnd]}
-            style={styles.userCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={[styles.userCard, { backgroundColor: COLORS.primary }]}>
             <View style={styles.userCardContent}>
               <View style={styles.avatarLarge}>
                 <Text style={styles.avatarLargeText}>SK</Text>
@@ -47,7 +37,7 @@ export default function ProfileScreen() {
                 </View>
               </View>
             </View>
-          </LinearGradient>
+          </View>
 
           {/* Menu Options */}
           <View style={styles.menuContainer}>
@@ -59,7 +49,7 @@ export default function ProfileScreen() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
-            
+
             <View style={styles.menuDivider} />
 
             <TouchableOpacity style={styles.menuItem}>
@@ -97,7 +87,7 @@ export default function ProfileScreen() {
           {/* This Month Stats */}
           <View style={styles.statsCard}>
             <Text style={styles.statsCardTitle}>This Month</Text>
-            
+
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Punctuality</Text>
@@ -106,7 +96,7 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={[styles.statPercentage, { color: COLORS.statusPresent }]}>78%</Text>
               </View>
-              
+
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Attendance</Text>
                 <View style={styles.progressContainer}>
@@ -139,7 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   headerGradient: {
-    paddingTop: Platform.OS === 'android' ? 40 : 20,
+    marginTop: 10,
     paddingBottom: 20,
     paddingHorizontal: SIZES.padding,
     borderBottomLeftRadius: 0,

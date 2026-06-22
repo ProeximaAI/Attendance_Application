@@ -1,28 +1,23 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Text } from '../../components/Themed';
 import { COLORS, SIZES } from '../../constants/theme';
 
 export default function LogsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        {/* Header Gradient */}
-        <LinearGradient
-          colors={[COLORS.gradientPrimaryStart, COLORS.gradientPrimaryEnd]}
-          style={styles.headerGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
+        {/* Header View */}
+        <View style={[styles.headerGradient, { backgroundColor: COLORS.background }]}>
           <View style={styles.headerContent}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <MaterialCommunityIcons name="clipboard-text" size={24} color="#FFFFFF" />
+              <MaterialCommunityIcons name="clipboard-text" size={24} color={COLORS.primary} />
               <Text style={styles.headerTitle}>Attendance Logs</Text>
             </View>
-            <Text style={styles.headerSubtitle}>Jun 2026 — View History</Text>
+            <Text style={[styles.headerSubtitle, { color: COLORS.textMuted }]}>Jun 2026 — View History</Text>
           </View>
-        </LinearGradient>
+        </View>
 
         <View style={styles.content}>
           {/* Controls */}
@@ -141,7 +136,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   headerGradient: {
-    paddingTop: Platform.OS === 'android' ? 40 : 20,
+    marginTop: 10,
     paddingBottom: 20,
     paddingHorizontal: SIZES.padding,
     borderBottomLeftRadius: 24,

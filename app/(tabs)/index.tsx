@@ -1,21 +1,47 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Platform, Modal, Image } from 'react-native';
+import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
+// Keep the linear-gradient import as requested, but don't use it.
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useContext, useEffect, useRef } from 'react';
+import { Text } from '../../components/Themed';
 import { COLORS, SIZES } from '../../constants/theme';
+import { CheckInContext } from '../../context/CheckInContext';
 import { useAuth } from '../../hooks/useAuth';
-import { useState, useRef } from 'react';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  
+  const { punchInTime } = useContext(CheckInContext);
+
+  /* // Check-in state moved to CheckInContext
   const [isCameraModalVisible, setIsCameraModalVisible] = useState(false);
   const [punchInTime, setPunchInTime] = useState<Date | null>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
+
+  // PanResponder for Swipe to Check In
+  const pan = useRef(new Animated.ValueXY()).current;
+  const SWIPE_THRESHOLD = 200; // Will be constrained by layout, assume 200px is enough to trigger
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: Animated.event([null, { dx: pan.x }], { useNativeDriver: false }),
+      onPanResponderRelease: (e, gesture) => {
+        if (gesture.dx > SWIPE_THRESHOLD) {
+          Animated.spring(pan, { toValue: { x: SWIPE_THRESHOLD + 50, y: 0 }, useNativeDriver: false }).start(() => {
+            handleDayPress(true);
+            setTimeout(() => {
+              pan.setValue({ x: 0, y: 0 }); // reset after opening modal
+            }, 500);
+          });
+        } else {
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+        }
+      }
+    })
+  ).current;
 
   const takePicture = async () => {
     if (cameraRef.current) {
@@ -31,13 +57,14 @@ export default function HomeScreen() {
     setIsCameraModalVisible(false);
     setCapturedPhoto(null);
   };
+  */
 
   const getWeekDays = () => {
     const today = new Date();
     const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay(); // 1 = Mon, 7 = Sun
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - dayOfWeek + 1);
-    
+
     const week = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
@@ -46,182 +73,282 @@ export default function HomeScreen() {
       week.push({
         dayObj: d,
         day: d.toLocaleDateString('en-US', { weekday: 'short' }),
-        date: d.getDate().toString(),
-        status: isToday ? (punchInTime ? COLORS.statusPresent : COLORS.statusAbsent) : 'transparent',
+        date: d.getDate().toString().padStart(2, '0'),
         active: isToday
       });
     }
     return week;
   };
-  
+
   const weekDays = getWeekDays();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const activeDayIndex = weekDays.findIndex(d => d.active);
+
+  useEffect(() => {
+    if (scrollViewRef.current && activeDayIndex >= 0) {
+      setTimeout(() => {
+        const itemWidth = 80 + 12; // width + marginRight
+        const screenWidth = Dimensions.get('window').width;
+        // Center the active item
+        const offset = (activeDayIndex * itemWidth) - (screenWidth / 2) + (80 / 2) + SIZES.padding;
+        scrollViewRef.current?.scrollTo({ x: Math.max(0, offset), animated: true });
+      }, 300);
+    }
+  }, [activeDayIndex]);
 
   const handleDayPress = async (isToday: boolean) => {
+    /* 
     if (isToday && !punchInTime) {
       if (!permission?.granted) {
         await requestPermission();
       }
       setIsCameraModalVisible(true);
-    }
+    } 
+    */
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'top']}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 10, 20), backgroundColor: COLORS.background }]}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity style={styles.menuButton}>
-              <Ionicons name="menu" size={28} color={COLORS.text} />
-            </TouchableOpacity>
-            <Text style={styles.headerDateText}>
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </Text>
-          </View>
-          
-          <View style={styles.headerRight}>
-            <Text style={styles.greetingText}>Hello, {user?.name?.split(' ')[0] || 'Alex'}</Text>
-            <View style={styles.headerAvatar}>
-              <Text style={styles.headerAvatarText}>{user?.name?.charAt(0) || 'A'}</Text>
+        <View style={styles.headerContainer}>
+          <View style={styles.headerProfile}>
+            <Image
+              source={{ uri: 'https://i.pravatar.cc/150?img=11' }} // Placeholder for user image
+              style={styles.profileImage}
+            />
+            <View style={styles.profileDetails}>
+              <Text style={styles.profileName}>{user?.name || 'Michael Mitc'}</Text>
+              <Text style={styles.profileRole}>{user?.role || 'Lead UI/UX Designer'}</Text>
             </View>
           </View>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.content}>
-          {/* User & Clock In Card */}
-          <View style={styles.card}>
-            <View style={styles.userInfoRow}>
-              <View style={styles.avatarContainer}>
-                <LinearGradient
-                  colors={[COLORS.gradientPrimaryStart, COLORS.gradientPrimaryEnd]}
-                  style={styles.avatarGradient}
-                >
-                  <Text style={styles.avatarText}>SK</Text>
-                </LinearGradient>
-              </View>
-              <View style={styles.userDetails}>
-                <Text style={styles.userName}>{user?.name || 'Swarup Kumar'}</Text>
-                <Text style={styles.userRole}>{user?.role || 'Software Developer'}</Text>
-              </View>
-              <View style={styles.activeBadge}>
-                <Text style={styles.activeBadgeText}>Active</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.clockInButton} onPress={() => handleDayPress(true)}>
-              <LinearGradient
-                colors={[COLORS.gradientPrimaryStart, COLORS.gradientPrimaryEnd]}
-                style={styles.clockInGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <MaterialCommunityIcons name="clock-check-outline" size={24} color="white" />
-                <Text style={styles.clockInText}>
-                  {punchInTime ? `Clocked In — ${punchInTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'Clock In — Pending'}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
           {/* Calendar Strip */}
           <View style={styles.calendarContainer}>
             <View style={styles.calendarHeader}>
               <Text style={styles.calendarMonth}>June 2026</Text>
-              <View style={styles.calendarNav}>
-                <TouchableOpacity><Ionicons name="chevron-back" size={20} color={COLORS.text} /></TouchableOpacity>
-                <TouchableOpacity style={{ marginLeft: 16 }}><Ionicons name="chevron-forward" size={20} color={COLORS.text} /></TouchableOpacity>
-              </View>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calendarScroll}>
+            <ScrollView ref={scrollViewRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calendarScroll}>
               {weekDays.map((item, index) => (
-                <TouchableOpacity 
-                  key={index} 
+                <TouchableOpacity
+                  key={index}
                   style={[styles.calendarDay, item.active && styles.calendarDayActive]}
                   onPress={() => handleDayPress(item.active)}
                 >
-                  <View style={[styles.calendarDot, { backgroundColor: item.status }]} />
-                  <Text style={[styles.calendarDateText, item.active && styles.calendarDateTextActive]}>{item.date}</Text>
-                  <Text style={[styles.calendarDayText, item.active && styles.calendarDayTextActive]}>{item.day}</Text>
+                  <Text style={[styles.calendarDateText, item.active && styles.calendarTextActive]}>{item.date}</Text>
+                  <Text style={[styles.calendarDayText, item.active && styles.calendarTextActive]}>{item.day}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
 
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, { color: COLORS.statusPresent }]}>22</Text>
-              <Text style={styles.statLabel}>Present</Text>
+          {/* Today Attendance Header Replacement */}
+          <View style={styles.todayHeaderRow}>
+            <Text style={styles.todayDateText}>
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </Text>
+            <View style={styles.locationPill}>
+              <Ionicons name="location" size={12} color="#FFFFFF" />
+              <Text style={styles.locationPillText} numberOfLines={1}>Bhubaneswar, Odisha</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, { color: COLORS.statusAbsent }]}>3</Text>
-              <Text style={styles.statLabel}>Absent</Text>
+          </View>
+          <View style={styles.attendanceGrid}>
+            <View style={styles.attendanceCard}>
+              <View style={styles.cardHeaderRow}>
+                <View style={[styles.iconWrapper, { backgroundColor: '#E0F2FE' }]}>
+                  <MaterialCommunityIcons name="login" size={16} color={COLORS.secondary} />
+                </View>
+                <Text style={styles.cardTitle}>Check In</Text>
+              </View>
+              <Text style={styles.cardValue}>{punchInTime ? punchInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:20 am'}</Text>
+              <Text style={styles.cardSubtitle}>On Time</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, { color: COLORS.statusLeave }]}>5</Text>
-              <Text style={styles.statLabel}>Leaves</Text>
+
+            <View style={styles.attendanceCard}>
+              <View style={styles.cardHeaderRow}>
+                <View style={[styles.iconWrapper, { backgroundColor: '#EDE9FE' }]}>
+                  <MaterialCommunityIcons name="logout" size={16} color={COLORS.primary} />
+                </View>
+                <Text style={styles.cardTitle}>Check Out</Text>
+              </View>
+              <Text style={styles.cardValue}>07:00 pm</Text>
+              <Text style={styles.cardSubtitle}>Go Home</Text>
+            </View>
+
+            <View style={styles.attendanceCard}>
+              <View style={styles.cardHeaderRow}>
+                <View style={[styles.iconWrapper, { backgroundColor: '#EDE9FE' }]}>
+                  <Ionicons name="arrow-up" size={16} color={COLORS.primary} />
+                </View>
+                <Text style={styles.cardTitle}>Absence</Text>
+              </View>
+              <Text style={styles.cardValue}>3 Day</Text>
+              <Text style={styles.cardSubtitle}>{new Date().toLocaleDateString('en-US', { month: 'long' })}</Text>
+            </View>
+
+            <View style={styles.attendanceCard}>
+              <View style={styles.cardHeaderRow}>
+                <View style={[styles.iconWrapper, { backgroundColor: '#EDE9FE' }]}>
+                  <MaterialCommunityIcons name="calendar-month-outline" size={16} color={COLORS.primary} />
+                </View>
+                <Text style={styles.cardTitle}>Total Days</Text>
+              </View>
+              <Text style={styles.cardValue}>28</Text>
+              <Text style={styles.cardSubtitle}>Working Days</Text>
+            </View>
+          </View>
+
+          {/* Attendance History */}
+          <View style={styles.activityHeaderRow}>
+            <Text style={styles.sectionTitle}>Attendance History</Text>
+            <TouchableOpacity>
+              <Text style={styles.viewAllText}>See More</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.historyCard}>
+            <View style={[styles.historyDateBlock, { backgroundColor: COLORS.primary }]}>
+              <Text style={styles.historyDateNumber}>22</Text>
+              <Text style={styles.historyDateDay}>Wed</Text>
+            </View>
+            <View style={styles.historyDetails}>
+              <View style={styles.historyTimesRow}>
+                <View style={styles.historyTimeItem}>
+                  <Text style={styles.historyTimeValue}>07:57</Text>
+                  <Text style={styles.historyTimeLabel}>Check In</Text>
+                </View>
+                <View style={styles.historyDivider} />
+                <View style={styles.historyTimeItem}>
+                  <Text style={styles.historyTimeValue}>17:00</Text>
+                  <Text style={styles.historyTimeLabel}>Check out</Text>
+                </View>
+                <View style={styles.historyDivider} />
+                <View style={styles.historyTimeItem}>
+                  <Text style={styles.historyTimeValue}>08:03</Text>
+                  <Text style={styles.historyTimeLabel}>Total Hours</Text>
+                </View>
+              </View>
+              <View style={styles.historyLocationRow}>
+                <Ionicons name="location" size={12} color={COLORS.primary} />
+                <Text style={styles.historyLocationText}>Office, Bhubaneswar, Odisha</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.historyCard}>
+            <View style={[styles.historyDateBlock, { backgroundColor: COLORS.primary }]}>
+              <Text style={styles.historyDateNumber}>21</Text>
+              <Text style={styles.historyDateDay}>Tue</Text>
+            </View>
+            <View style={styles.historyDetails}>
+              <View style={styles.historyTimesRow}>
+                <View style={styles.historyTimeItem}>
+                  <Text style={styles.historyTimeValue}>08:03</Text>
+                  <Text style={styles.historyTimeLabel}>Check In</Text>
+                </View>
+                <View style={styles.historyDivider} />
+                <View style={styles.historyTimeItem}>
+                  <Text style={styles.historyTimeValue}>17:08</Text>
+                  <Text style={styles.historyTimeLabel}>Check out</Text>
+                </View>
+                <View style={styles.historyDivider} />
+                <View style={styles.historyTimeItem}>
+                  <Text style={styles.historyTimeValue}>08:05</Text>
+                  <Text style={styles.historyTimeLabel}>Total Hours</Text>
+                </View>
+              </View>
+              <View style={styles.historyLocationRow}>
+                <Ionicons name="location" size={12} color={COLORS.primary} />
+                <Text style={styles.historyLocationText}>Office, Bhubaneswar, Odisha</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.historyCard}>
+            <View style={[styles.historyDateBlock, { backgroundColor: COLORS.primary }]}>
+              <Text style={styles.historyDateNumber}>20</Text>
+              <Text style={styles.historyDateDay}>Mon</Text>
+            </View>
+            <View style={styles.historyDetails}>
+              <View style={styles.historyTimesRow}>
+                <View style={styles.historyTimeItem}>
+                  <Text style={styles.historyTimeValue}>07:59</Text>
+                  <Text style={styles.historyTimeLabel}>Check In</Text>
+                </View>
+                <View style={styles.historyDivider} />
+                <View style={styles.historyTimeItem}>
+                  <Text style={styles.historyTimeValue}>17:00</Text>
+                  <Text style={styles.historyTimeLabel}>Check out</Text>
+                </View>
+                <View style={styles.historyDivider} />
+                <View style={styles.historyTimeItem}>
+                  <Text style={styles.historyTimeValue}>08:01</Text>
+                  <Text style={styles.historyTimeLabel}>Total Hours</Text>
+                </View>
+              </View>
+              <View style={styles.historyLocationRow}>
+                <Ionicons name="location" size={12} color={COLORS.primary} />
+                <Text style={styles.historyLocationText}>Office, Bhubaneswar, Odisha</Text>
+              </View>
             </View>
           </View>
 
           {/* Live Location Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardSectionTitle}>LIVE LOCATION</Text>
-            <View style={styles.mapPlaceholder}>
-              {/* Map grid background pattern */}
-              <View style={styles.mapGrid} />
-              <View style={styles.locationPulse}>
-                <View style={styles.locationDot} />
+          <View style={styles.liveLocationContainer}>
+            <Text style={styles.sectionTitle}>Live Location</Text>
+            <View style={styles.card}>
+              <View style={styles.mapPlaceholder}>
+                <View style={styles.mapGrid} />
+                <View style={styles.locationPulse}>
+                  <View style={styles.locationDot} />
+                </View>
               </View>
-            </View>
-            <View style={styles.locationFooter}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="location-outline" size={16} color={COLORS.primary} />
-                <Text style={styles.locationText}>Bhubaneswar, Odisha</Text>
+              <View style={styles.locationFooter}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="location-outline" size={16} color={COLORS.primary} />
+                  <Text style={styles.locationText}>Bhubaneswar, Odisha</Text>
+                </View>
+                <View style={styles.trackedBadge}>
+                  <Text style={styles.trackedBadgeText}>Tracked</Text>
+                </View>
               </View>
-              <View style={styles.trackedBadge}>
-                <Text style={styles.trackedBadgeText}>Tracked</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Today's Shift Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardSectionTitle}>TODAY'S SHIFT</Text>
-            <View style={styles.shiftDetailsRow}>
-              <View style={styles.shiftItem}>
-                <Text style={styles.shiftLabel}>In</Text>
-                <Text style={[styles.shiftValue, { color: COLORS.statusPresent }]}>
-                  {punchInTime ? punchInTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
-                </Text>
-              </View>
-              <View style={styles.shiftDividerContainer}>
-                <View style={styles.shiftLine} />
-                <MaterialCommunityIcons name="clock-outline" size={16} color={COLORS.primary} />
-                <View style={styles.shiftLine} />
-              </View>
-              <View style={styles.shiftItem}>
-                <Text style={styles.shiftLabel}>Out</Text>
-                <Text style={[styles.shiftValue, { color: COLORS.statusAbsent }]}>06:00</Text>
-              </View>
-              <View style={[styles.shiftItem, { alignItems: 'flex-end' }]}>
-                <Text style={styles.shiftLabel}>Duration</Text>
-                <Text style={[styles.shiftValue, { color: COLORS.statusLeave }]}>9h 00m</Text>
-              </View>
-            </View>
-            <View style={styles.progressBarContainer}>
-              <LinearGradient
-                colors={[COLORS.gradientPrimaryStart, COLORS.gradientPrimaryEnd]}
-                style={[styles.progressBarFill, { width: '60%' }]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              />
             </View>
           </View>
 
         </View>
       </ScrollView>
 
-      {/* Camera Punch-In Modal */}
+      {/* Sticky Swipe to Check In (Commented out)
+      <View style={styles.stickySwipeContainer}>
+        <View style={styles.swipeTrack}>
+          <Text style={styles.swipeText}>Swipe to Check In</Text>
+          <Animated.View
+            style={[
+              styles.swipeThumb,
+              {
+                transform: [{
+                  translateX: pan.x.interpolate({
+                    inputRange: [0, SWIPE_THRESHOLD + 50],
+                    outputRange: [0, SWIPE_THRESHOLD + 50],
+                    extrapolate: 'clamp'
+                  })
+                }]
+              }
+            ]}
+            {...panResponder.panHandlers}
+          >
+            <Ionicons name="arrow-forward" size={24} color={COLORS.primary} />
+          </Animated.View>
+        </View>
+      </View>
+      */}
+
+      {/* Camera Punch-In Modal (Moved to Global Context)
       <Modal visible={isCameraModalVisible} animationType="slide" transparent={false}>
         <View style={{ flex: 1, backgroundColor: 'black' }}>
           {capturedPhoto ? (
@@ -266,6 +393,7 @@ export default function HomeScreen() {
           )}
         </View>
       </Modal>
+      */}
     </SafeAreaView>
   );
 }
@@ -276,55 +404,52 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   headerContainer: {
-    paddingBottom: 20,
     paddingHorizontal: SIZES.padding,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 20,
   },
-  headerLeft: {
+  headerProfile: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  menuButton: {
-    padding: 4,
-    marginRight: 12,
+  profileImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
-  headerDateText: {
-    fontSize: 16,
+  profileDetails: {
+    marginLeft: 12,
+  },
+  profileName: {
+    fontSize: 18,
     color: COLORS.text,
-    fontWeight: '600',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  greetingText: {
-    fontSize: 16,
-    color: COLORS.text,
-    marginRight: 12,
-    fontWeight: '500',
-  },
-  headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerAvatarText: {
-    color: 'white',
-    fontSize: 16,
     fontWeight: 'bold',
   },
+  profileRole: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  content: {
+    paddingHorizontal: SIZES.padding,
+  },
   calendarContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 12,
   },
   calendarMonth: {
@@ -332,156 +457,141 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  calendarNav: {
-    flexDirection: 'row',
-  },
   calendarScroll: {
     paddingRight: SIZES.padding,
   },
   calendarDay: {
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-    marginRight: 8,
-    backgroundColor: 'transparent',
-  },
-  calendarDayActive: {
-    backgroundColor: COLORS.cardBackground,
+    justifyContent: 'center',
+    width: 80,
+    height: 85,
+    borderRadius: 20,
+    marginRight: 12,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  calendarDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginBottom: 8,
+  calendarDayActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   calendarDateText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  calendarDayText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontWeight: '500',
+  },
+  calendarTextActive: {
+    color: '#FFFFFF',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 12,
+  },
+  attendanceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  attendanceCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  iconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  cardTitle: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: '600',
+  },
+  cardValue: {
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
     marginBottom: 4,
   },
-  calendarDateTextActive: {
-    color: COLORS.primary,
-  },
-  calendarDayText: {
+  cardSubtitle: {
     fontSize: 12,
     color: COLORS.textMuted,
   },
-  calendarDayTextActive: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
-  content: {
-    padding: SIZES.padding,
-    marginTop: -10,
-  },
-  card: {
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: SIZES.radius,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  userInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  avatarContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    overflow: 'hidden',
-  },
-  avatarGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  userDetails: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  userName: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  userRole: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  activeBadge: {
-    backgroundColor: 'rgba(30, 201, 131, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  activeBadgeText: {
-    color: COLORS.statusPresent,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  clockInButton: {
-    borderRadius: 30,
-    overflow: 'hidden',
-  },
-  clockInGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-  },
-  clockInText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  statsRow: {
+  activityHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  statCard: {
-    backgroundColor: COLORS.cardBackground,
+  viewAllText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  stickySwipeContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: SIZES.padding,
+    right: SIZES.padding,
+  },
+  swipeTrack: {
+    height: 56,
+    backgroundColor: COLORS.primary,
+    borderRadius: 28,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  swipeText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  swipeThumb: {
+    position: 'absolute',
+    left: 4,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  liveLocationContainer: {
+    marginBottom: 20,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
     borderRadius: SIZES.radius,
     padding: 16,
-    flex: 1,
-    alignItems: 'center',
-    marginHorizontal: 4,
     borderWidth: 1,
     borderColor: COLORS.border,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  cardSectionTitle: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginBottom: 12,
   },
   mapPlaceholder: {
     height: 120,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.pageBgTint,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -490,7 +600,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   mapGrid: {
-    ...StyleSheet.absoluteFill,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     opacity: 0.3,
     borderWidth: 1,
     borderColor: COLORS.primary,
@@ -500,7 +614,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(92, 74, 228, 0.2)',
+    backgroundColor: 'rgba(67, 56, 202, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -508,7 +622,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#9B72FF',
+    backgroundColor: COLORS.primary,
     borderWidth: 2,
     borderColor: 'white',
   },
@@ -524,54 +638,111 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   trackedBadge: {
-    backgroundColor: 'rgba(51, 208, 217, 0.15)',
+    backgroundColor: COLORS.cardBackground,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   trackedBadgeText: {
-    color: COLORS.secondary,
+    color: COLORS.primary,
     fontSize: 12,
     fontWeight: '600',
   },
-  shiftDetailsRow: {
+  todayHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  shiftItem: {
-    alignItems: 'center',
-  },
-  shiftLabel: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  shiftValue: {
-    fontSize: 18,
+  todayDateText: {
+    fontSize: 14,
+    color: COLORS.text,
     fontWeight: 'bold',
   },
-  shiftDividerContainer: {
+  locationPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    maxWidth: 140,
   },
-  shiftLine: {
+  locationPillText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  historyCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  historyDateBlock: {
+    width: 60,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  historyDateNumber: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  historyDateDay: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  historyDetails: {
     flex: 1,
-    height: 1,
+    marginLeft: 16,
+    justifyContent: 'center',
+  },
+  historyTimesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historyTimeItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  historyTimeValue: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  historyTimeLabel: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  historyDivider: {
+    width: 1,
+    height: 24,
     backgroundColor: COLORS.border,
-    marginHorizontal: 4,
   },
-  progressBarContainer: {
-    height: 6,
-    backgroundColor: COLORS.background,
-    borderRadius: 3,
-    overflow: 'hidden',
+  historyLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  }
+  historyLocationText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginLeft: 4,
+  },
 });

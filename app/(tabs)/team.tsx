@@ -1,28 +1,23 @@
-import { StyleSheet, Text, View, ScrollView, TextInput, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Text } from '../../components/Themed';
 import { COLORS, SIZES } from '../../constants/theme';
 
 export default function TeamScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        {/* Header Gradient */}
-        <LinearGradient
-          colors={[COLORS.gradientPrimaryStart, COLORS.gradientPrimaryEnd]}
-          style={styles.headerGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
+        {/* Header View */}
+        <View style={[styles.headerGradient, { backgroundColor: COLORS.background }]}>
           <View style={styles.headerContent}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="people" size={24} color="#FFFFFF" />
+              <Ionicons name="people" size={24} color={COLORS.primary} />
               <Text style={styles.headerTitle}>Team Directory</Text>
             </View>
-            <Text style={styles.headerSubtitle}>50 Employees</Text>
+            <Text style={[styles.headerSubtitle, { color: COLORS.textMuted }]}>50 Employees</Text>
           </View>
-        </LinearGradient>
+        </View>
 
         <View style={styles.content}>
           {/* Search Bar */}
@@ -116,7 +111,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   headerGradient: {
-    paddingTop: Platform.OS === 'android' ? 40 : 20,
+    marginTop: 10,
     paddingBottom: 20,
     paddingHorizontal: SIZES.padding,
     borderBottomLeftRadius: 24,
