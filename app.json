@@ -18,7 +18,10 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.swarupbehera.ProeximaAI_Attendance_App"
+      "package": "com.swarupbehera.ProeximaAI_Attendance_App",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -41,7 +44,8 @@
           "cameraPermission": "Allow ProeximaAI to access your camera for facial recognition punch-in.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true
@@ -49,8 +53,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "864fa1b3-c5ba-4513-9a8e-08f587e64829"
+        "projectId": "3ff1b8ca-0ac6-48e8-91c0-8ec7c731f166"
       }
-    }
+    },
+    "owner": "proeximaai"
   }
 }

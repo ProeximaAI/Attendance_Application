@@ -14,7 +14,7 @@ export {
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
+  initialRouteName: 'index',
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -30,11 +30,6 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
 
   if (!loaded) {
     return null;
@@ -57,23 +52,42 @@ function NavigationHandler({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
 
+    const hideSplash = () => {
+      // Use requestAnimationFrame and a small timeout to ensure the UI is fully painted
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          SplashScreen.hideAsync();
+        }, 150);
+      });
+    };
+
     const inAuthGroup = segments[0] === 'login' || segments[0] === 'welcome' || segments[0] === 'onboarding';
 
+    // Since app/index.tsx handles the initial routing, NavigationHandler only needs to enforce 
+    // reactive state changes (like logging out) and hide the splash screen when on a valid route.
+    
+    // Check if we are on the gatekeeper index route. If so, just wait (it will redirect on its own).
+    if (!segments[0]) {
+       return; 
+    }
+
     if (isFirstLaunch) {
-      // If first launch, user must go through onboarding
       if (segments[0] !== 'welcome' && segments[0] !== 'onboarding') {
-        // Use a small delay to ensure router is ready
-        setTimeout(() => router.replace('/welcome'), 1);
+        router.replace('/welcome');
+      } else {
+        hideSplash();
       }
     } else if (!user) {
-      // If not first launch and not logged in, go to login
       if (segments[0] !== 'login') {
-        setTimeout(() => router.replace('/login'), 1);
+        router.replace('/login');
+      } else {
+        hideSplash();
       }
     } else if (user) {
-      // If logged in and trying to access auth screens, redirect to home
       if (inAuthGroup) {
-        setTimeout(() => router.replace('/(tabs)'), 1);
+        router.replace('/(tabs)');
+      } else {
+        hideSplash();
       }
     }
   }, [user, isLoading, isFirstLaunch, segments]);
@@ -99,6 +113,7 @@ function RootLayoutNav() {
           <StatusBar style="dark" />
           <NavigationHandler>
             <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
               <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: COLORS.background } }} />
               <Stack.Screen name="welcome" />
               <Stack.Screen name="onboarding" />

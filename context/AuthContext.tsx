@@ -1,6 +1,5 @@
-import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authService } from '../services/authService';
+import React, { createContext, useEffect, useState } from 'react';
 
 type User = {
   id: number;
@@ -21,9 +20,9 @@ export const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   isFirstLaunch: null,
-  completeOnboarding: async () => {},
-  login: async () => {},
-  logout: async () => {},
+  completeOnboarding: async () => { },
+  login: async () => { },
+  logout: async () => { },
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -40,7 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setIsFirstLaunch(false);
         }
-        
+
         // Ensure user is null on load to force login screen
         setUser(null);
       } catch (e) {
@@ -49,7 +48,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(false);
       }
     };
-    
+
     checkState();
   }, []);
 
