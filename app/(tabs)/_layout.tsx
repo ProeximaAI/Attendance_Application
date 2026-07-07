@@ -128,12 +128,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="team"
+        name="leaves"
         options={{
-          title: 'Team',
+          title: 'Leaves',
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "people" : "people-outline"} size={28} color={color} />
+            <Ionicons name={focused ? "calendar" : "calendar-outline"} size={26} color={color} />
           ),
         }}
       />

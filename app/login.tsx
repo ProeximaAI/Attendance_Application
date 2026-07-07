@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useContext, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppState, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { Text } from '../components/Themed';
 import { COLORS } from '../constants/theme';
@@ -11,21 +11,36 @@ import { AuthContext } from '../context/AuthContext';
 const videoSource = require('../assets/Videos/login_screen_video.mp4');
 
 export default function LoginScreen() {
-  const { login } = useContext(AuthContext);
+  const { login, isSplashFinished } = useContext(AuthContext);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isFormActive, setIsFormActive] = useState(false);
 
   const player = useVideoPlayer(videoSource, player => {
-    player.loop = true; // Keep loop true to prevent EOF black screen bugs on Android
-    player.play();
+    player.loop = false; // Set loop to false so video stops and holds on the last frame
   });
 
   const isFormVisible = useSharedValue(0);
   const bounceValue = useSharedValue(0);
+  const isKeyboardVisible = useSharedValue(0);
 
   useEffect(() => {
+    if (!isSplashFinished) return;
+
+    let playTimer: NodeJS.Timeout;
+    if (player) {
+      try {
+        player.currentTime = 0;
+      } catch (e) {
+        // Ignore seek error if video not ready
+      }
+      player.play();
+      playTimer = setTimeout(() => {
+        if (player) player.play();
+      }, 150);
+    }
+
     // Start the energetic bouncing animation for the emoji immediately
     bounceValue.value = withRepeat(
       withSequence(
@@ -39,13 +54,51 @@ export default function LoginScreen() {
     // Trigger animation after 8.5 seconds based on user feedback
     const timer = setTimeout(() => {
       setIsFormActive(true);
-      player.pause(); // Explicitly pause the video so it freezes on this frame
       isFormVisible.value = withTiming(1, {
         duration: 1200,
         easing: Easing.inOut(Easing.ease)
       });
     }, 8500);
-    return () => clearTimeout(timer);
+
+    // Listen for app state changes (e.g. returning from recent apps/background)
+    const appStateSubscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active' && player) {
+        // When waking up from recent apps/background, native video surfaces take ~100-200ms to re-attach.
+        // Seeking alone while paused does not force Android ExoPlayer to render frames to a new surface.
+        // We delay slightly and call player.play() on the final 0.1 seconds to guarantee the frame is decoded and displayed.
+        const restoreFrame = () => {
+          if (player && player.duration > 0) {
+            player.currentTime = Math.max(0, player.duration - 0.1);
+            player.play();
+          }
+        };
+        setTimeout(restoreFrame, 150);
+        setTimeout(restoreFrame, 400);
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      if (playTimer) clearTimeout(playTimer);
+      appStateSubscription.remove();
+    };
+  }, [isSplashFinished, player]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      isKeyboardVisible.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) });
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      isKeyboardVisible.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.ease) });
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
   }, []);
 
   const handleLogin = async () => {
@@ -56,8 +109,11 @@ export default function LoginScreen() {
   };
 
   const videoStyle = useAnimatedStyle(() => {
+    // When form is not visible (0), height is 100%.
+    // When form is visible (1), height is 50% normally, or shrinks to 10% when keyboard opens (isKeyboardVisible = 1).
+    const targetHeight = 100 - 50 * isFormVisible.value - 40 * isFormVisible.value * isKeyboardVisible.value;
     return {
-      height: `${100 - 50 * isFormVisible.value}%` as any,
+      height: `${targetHeight}%` as any,
     };
   });
 

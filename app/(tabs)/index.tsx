@@ -203,9 +203,9 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Attendance History */}
+          {/* Attendance Log */}
           <View style={styles.activityHeaderRow}>
-            <Text style={styles.sectionTitle}>Attendance History</Text>
+            <Text style={styles.sectionTitle}>Attendance Log</Text>
             <TouchableOpacity>
               <Text style={styles.viewAllText}>See More</Text>
             </TouchableOpacity>

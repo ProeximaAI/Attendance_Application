@@ -43,9 +43,10 @@ import { AuthProvider, AuthContext } from '../context/AuthContext';
 import { CheckInProvider } from '../context/CheckInContext';
 import { useContext } from 'react';
 import { useRouter, useSegments } from 'expo-router';
+import VideoSplashScreen from '../components/VideoSplashScreen';
 
 function NavigationHandler({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, isFirstLaunch } = useContext(AuthContext);
+  const { user, isLoading, isFirstLaunch, isSplashFinished, setSplashFinished } = useContext(AuthContext);
   const segments = useSegments();
   const router = useRouter();
 
@@ -92,7 +93,15 @@ function NavigationHandler({ children }: { children: React.ReactNode }) {
     }
   }, [user, isLoading, isFirstLaunch, segments]);
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <VideoSplashScreen
+        visible={!isSplashFinished}
+        onFinish={() => setSplashFinished(true)}
+      />
+    </>
+  );
 }
 
 function RootLayoutNav() {
@@ -118,6 +127,14 @@ function RootLayoutNav() {
               <Stack.Screen name="welcome" />
               <Stack.Screen name="onboarding" />
               <Stack.Screen name="login" />
+              <Stack.Screen name="personal" />
+              <Stack.Screen name="team" />
+              <Stack.Screen name="visit" />
+              <Stack.Screen name="finance" />
+              <Stack.Screen name="attendance-menu" />
+              <Stack.Screen name="payroll" />
+              <Stack.Screen name="off-boarding" />
+              <Stack.Screen name="duty-request" />
               <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
             </Stack>
           </NavigationHandler>

@@ -11,6 +11,8 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   isFirstLaunch: boolean | null;
+  isSplashFinished: boolean;
+  setSplashFinished: (finished: boolean) => void;
   completeOnboarding: () => Promise<void>;
   login: (credentials: any) => Promise<void>;
   logout: () => Promise<void>;
@@ -20,6 +22,8 @@ export const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   isFirstLaunch: null,
+  isSplashFinished: false,
+  setSplashFinished: () => { },
   completeOnboarding: async () => { },
   login: async () => { },
   logout: async () => { },
@@ -29,6 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
+  const [isSplashFinished, setSplashFinished] = useState(false);
 
   useEffect(() => {
     const checkState = async () => {
@@ -89,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isFirstLaunch, completeOnboarding, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isFirstLaunch, isSplashFinished, setSplashFinished, completeOnboarding, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
