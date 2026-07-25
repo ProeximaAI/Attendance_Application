@@ -22,6 +22,8 @@ const OPTIONS: FinanceOption[] = [
 ];
 
 export default function FinanceScreen() {
+  const [isGridView, setIsGridView] = React.useState(false);
+
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
@@ -31,24 +33,31 @@ export default function FinanceScreen() {
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Finance</Text>
-          <TouchableOpacity style={styles.gridButton} activeOpacity={0.7}>
-            <Ionicons name="apps-outline" size={24} color="#FFFFFF" />
+          <TouchableOpacity style={styles.gridButton} activeOpacity={0.7} onPress={() => setIsGridView(!isGridView)}>
+            <Ionicons name={isGridView ? "list-outline" : "apps-outline"} size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
 
       <View style={styles.contentContainer}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={isGridView ? styles.scrollContentGrid : styles.scrollContent} showsVerticalScrollIndicator={false}>
           {OPTIONS.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.optionCard} activeOpacity={0.7}>
-              <View style={styles.iconContainer}>
-                <Ionicons name={item.icon} size={22} color={COLORS.primary} />
+            <TouchableOpacity 
+              key={item.id} 
+              style={isGridView ? styles.gridOptionCard : styles.optionCard} 
+              activeOpacity={0.7}
+              onPress={() => router.push({ pathname: '/finance/[id]', params: { id: item.id } })}
+            >
+              <View style={isGridView ? styles.gridIconContainer : styles.iconContainer}>
+                <Ionicons name={item.icon as any} size={isGridView ? 26 : 22} color={COLORS.primary} />
               </View>
-              <View style={styles.textContainer}>
-                <Text style={styles.optionTitle}>{item.title}</Text>
-                <Text style={styles.optionSubtitle}>{item.subtitle}</Text>
+              <View style={isGridView ? styles.gridTextContainer : styles.textContainer}>
+                <Text style={isGridView ? styles.gridOptionTitle : styles.optionTitle} numberOfLines={isGridView ? 2 : 1}>
+                  {item.title}
+                </Text>
+                {!isGridView && <Text style={styles.optionSubtitle}>{item.subtitle}</Text>}
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+              {!isGridView && <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />}
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -96,6 +105,13 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
+  scrollContentGrid: {
+    padding: 16,
+    paddingBottom: 40,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -104,6 +120,22 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  gridOptionCard: {
+    width: '31%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginBottom: 12,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -121,13 +153,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 14,
   },
+  gridIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#FFFBEB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   textContainer: {
     flex: 1,
+  },
+  gridTextContainer: {
+    width: '100%',
+    alignItems: 'center',
   },
   optionTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#1E1B4B',
+  },
+  gridOptionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E1B4B',
+    textAlign: 'center',
   },
   optionSubtitle: {
     fontSize: 12,

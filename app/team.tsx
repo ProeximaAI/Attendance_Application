@@ -27,6 +27,7 @@ const TEAM_MEMBERS: TeamMember[] = [
 ];
 
 export default function TeamScreen() {
+  const [isGridView, setIsGridView] = React.useState(false);
   const manager = TEAM_MEMBERS.find(m => m.isManager);
   const team = TEAM_MEMBERS.filter(m => !m.isManager);
 
@@ -48,8 +49,8 @@ export default function TeamScreen() {
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Team</Text>
-          <TouchableOpacity style={styles.gridButton} activeOpacity={0.7}>
-            <Ionicons name="apps-outline" size={24} color="#FFFFFF" />
+          <TouchableOpacity style={styles.gridButton} activeOpacity={0.7} onPress={() => setIsGridView(!isGridView)}>
+            <Ionicons name={isGridView ? "list-outline" : "apps-outline"} size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -59,49 +60,53 @@ export default function TeamScreen() {
           {/* Manager Section */}
           <Text style={styles.sectionHeader}>Reporting Manager</Text>
           {manager && (
-            <View style={[styles.memberCard, styles.managerCard]}>
-              <View style={[styles.avatarCircle, { backgroundColor: '#EEF2FF' }]}>
-                <Ionicons name="person" size={24} color="#4338CA" />
-              </View>
-              <View style={styles.memberInfo}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.memberName}>{manager.name}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(manager.status).bg }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(manager.status).text }]}>
-                      {manager.status}
-                    </Text>
-                  </View>
+            <View style={isGridView ? styles.gridContainer : null}>
+              <View style={[isGridView ? styles.gridMemberCard : styles.memberCard, isGridView ? styles.gridManagerCard : styles.managerCard]}>
+                <View style={[isGridView ? styles.gridAvatarCircle : styles.avatarCircle, { backgroundColor: '#EEF2FF' }]}>
+                  <Ionicons name="person" size={isGridView ? 28 : 24} color="#4338CA" />
                 </View>
-                <Text style={styles.memberRole}>{manager.role}</Text>
-                <Text style={styles.memberDept}>{manager.department}</Text>
+                <View style={isGridView ? styles.gridMemberInfo : styles.memberInfo}>
+                  <View style={isGridView ? styles.gridNameRow : styles.nameRow}>
+                    <Text style={isGridView ? styles.gridMemberName : styles.memberName} numberOfLines={1}>{manager.name}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(manager.status).bg, marginTop: isGridView ? 6 : 0 }]}>
+                      <Text style={[styles.statusText, { color: getStatusColor(manager.status).text, fontSize: isGridView ? 9 : 11 }]}>
+                        {manager.status}
+                      </Text>
+                    </View>
+                  </View>
+                  {!isGridView && <Text style={styles.memberRole}>{manager.role}</Text>}
+                  {!isGridView && <Text style={styles.memberDept}>{manager.department}</Text>}
+                </View>
               </View>
             </View>
           )}
 
           {/* Team Members Section */}
           <Text style={[styles.sectionHeader, { marginTop: 16 }]}>Team Members ({team.length})</Text>
-          {team.map((member) => {
-            const statusStyle = getStatusColor(member.status);
-            return (
-              <TouchableOpacity key={member.id} style={styles.memberCard} activeOpacity={0.7}>
-                <View style={[styles.avatarCircle, { backgroundColor: '#FFFBEB' }]}>
-                  <Ionicons name="person-outline" size={22} color={COLORS.primary} />
-                </View>
-                <View style={styles.memberInfo}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.memberName}>{member.name}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                      <Text style={[styles.statusText, { color: statusStyle.text }]}>
-                        {member.status}
-                      </Text>
-                    </View>
+          <View style={isGridView ? styles.gridContainer : null}>
+            {team.map((member) => {
+              const statusStyle = getStatusColor(member.status);
+              return (
+                <TouchableOpacity key={member.id} style={isGridView ? styles.gridMemberCard : styles.memberCard} activeOpacity={0.7}>
+                  <View style={[isGridView ? styles.gridAvatarCircle : styles.avatarCircle, { backgroundColor: '#FFFBEB' }]}>
+                    <Ionicons name="person-outline" size={isGridView ? 26 : 22} color={COLORS.primary} />
                   </View>
-                  <Text style={styles.memberRole}>{member.role}</Text>
-                  <Text style={styles.memberDept}>{member.department}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                  <View style={isGridView ? styles.gridMemberInfo : styles.memberInfo}>
+                    <View style={isGridView ? styles.gridNameRow : styles.nameRow}>
+                      <Text style={isGridView ? styles.gridMemberName : styles.memberName} numberOfLines={1}>{member.name}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg, marginTop: isGridView ? 6 : 0 }]}>
+                        <Text style={[styles.statusText, { color: statusStyle.text, fontSize: isGridView ? 9 : 11 }]}>
+                          {member.status}
+                        </Text>
+                      </View>
+                    </View>
+                    {!isGridView && <Text style={styles.memberRole}>{member.role}</Text>}
+                    {!isGridView && <Text style={styles.memberDept}>{member.department}</Text>}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </ScrollView>
       </View>
     </View>
@@ -147,6 +152,11 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
   sectionHeader: {
     fontSize: 14,
     fontWeight: '700',
@@ -155,6 +165,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 12,
     marginLeft: 4,
+    width: '100%',
   },
   memberCard: {
     flexDirection: 'row',
@@ -176,6 +187,27 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     backgroundColor: '#FAFAFE',
   },
+  gridMemberCard: {
+    width: '31%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  gridManagerCard: {
+    borderColor: '#E0E7FF',
+    borderWidth: 1.5,
+    backgroundColor: '#FAFAFE',
+  },
   avatarCircle: {
     width: 48,
     height: 48,
@@ -184,8 +216,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 14,
   },
+  gridAvatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   memberInfo: {
     flex: 1,
+  },
+  gridMemberInfo: {
+    width: '100%',
+    alignItems: 'center',
   },
   nameRow: {
     flexDirection: 'row',
@@ -193,10 +237,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  gridNameRow: {
+    alignItems: 'center',
+  },
   memberName: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1E1B4B',
+  },
+  gridMemberName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E1B4B',
+    textAlign: 'center',
   },
   statusBadge: {
     paddingHorizontal: 8,

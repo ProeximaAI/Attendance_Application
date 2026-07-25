@@ -1,0 +1,232 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React, { useRef, useState } from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Text } from '../../components/Themed';
+import { COLORS } from '../../constants/theme';
+
+const OPTIONS = [
+  { id: '1', title: 'Add Face' },
+  { id: '2', title: 'Address' },
+  { id: '3', title: 'Experience' },
+  { id: '4', title: 'Education' },
+  { id: '5', title: 'Family Details' },
+  { id: '6', title: 'Branch' },
+  { id: '7', title: 'Department' },
+  { id: '8', title: 'Designation' },
+  { id: '9', title: 'Employee Document' },
+  { id: '10', title: 'Shift' },
+];
+
+export default function PersonalDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const option = OPTIONS.find((o) => o.id === id);
+  const title = option ? option.title : 'Detail';
+
+  const isAddFace = id === '1';
+  // Add plus symbol for Address, Experience, Education, Family details, Employee document
+  const showPlusSymbol = ['2', '3', '4', '5', '9'].includes(id as string);
+
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+
+  const takePicture = async () => {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePictureAsync();
+      if (photo) {
+        setCapturedPhoto(photo.uri);
+      }
+    }
+  };
+
+  const handleConfirmFace = () => {
+    router.back();
+  };
+
+  return (
+    <View style={styles.mainContainer}>
+      <StatusBar style="light" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: COLORS.primary }]} edges={['top']}>
+        <View style={[styles.header, { backgroundColor: COLORS.primary }]}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{title}</Text>
+          <View style={styles.rightButtonContainer}>
+            {showPlusSymbol ? (
+              <TouchableOpacity style={styles.plusButton} activeOpacity={0.7}>
+                <Ionicons name="add" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.emptyRight} />
+            )}
+          </View>
+        </View>
+      </SafeAreaView>
+
+      <View style={styles.contentContainer}>
+        {isAddFace ? (
+          <View style={styles.cameraContainer}>
+            {permission?.granted ? (
+              <>
+                <CameraView 
+                  ref={cameraRef}
+                  style={styles.camera} 
+                  facing="front"
+                />
+                <View style={styles.cameraOverlay}>
+                  <View style={styles.faceOutline} />
+                </View>
+                <View style={styles.cameraFooter}>
+                  <TouchableOpacity 
+                    style={[styles.captureButton, capturedPhoto && styles.capturedButton]} 
+                    onPress={capturedPhoto ? handleConfirmFace : takePicture}
+                  >
+                    <Text style={styles.captureButtonText}>
+                      {capturedPhoto ? 'Confirm Face' : 'Take Photo'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <View style={styles.noPermissionContainer}>
+                <Text style={{textAlign: 'center', color: COLORS.textMuted}}>We need your permission to show the camera</Text>
+                <TouchableOpacity onPress={requestPermission} style={{marginTop: 20}}>
+                  <Text style={{color: COLORS.primary, fontWeight: 'bold'}}>Grant Permission</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={styles.emptyStateContainer}>
+            <Text style={styles.emptyStateText}>No data available!</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  safeArea: {
+    // will be overridden inline
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  backButton: {
+    width: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '500', // Medium weight to match screenshot
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center',
+  },
+  rightButtonContainer: {
+    width: 40,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  emptyRight: {
+    width: 32,
+    height: 32,
+  },
+  plusButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 15,
+    color: '#4B5563', // Gray text
+  },
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  camera: {
+    flex: 1,
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  faceOutline: {
+    width: 250,
+    height: 350,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    borderRadius: 125,
+    borderStyle: 'dashed',
+  },
+  noPermissionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+  },
+  cameraFooter: {
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    right: 20,
+    zIndex: 2,
+  },
+  captureButton: {
+    backgroundColor: COLORS.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  capturedButton: {
+    backgroundColor: COLORS.statusPresent,
+  },
+  captureButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
