@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../../components/Themed';
 import { COLORS, SIZES } from '../../constants/theme';
@@ -12,8 +12,28 @@ import { useAuth } from '../../hooks/useAuth';
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to log out of your account?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Logout",
+          onPress: async () => {
+            await logout();
+          },
+          style: "destructive"
+        }
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -208,6 +228,19 @@ export default function ProfileScreen() {
               <View style={styles.listTextContainer}>
                 <Text style={styles.listTitle}>Master</Text>
                 <Text style={styles.listSubtitle}>System configurations</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <View style={styles.listDivider} />
+
+            <TouchableOpacity style={styles.listItem} activeOpacity={0.7} onPress={handleLogout}>
+              <View style={[styles.listIconCircle, { backgroundColor: '#FEF2F2' }]}>
+                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+              </View>
+              <View style={styles.listTextContainer}>
+                <Text style={[styles.listTitle, { color: '#EF4444' }]}>Logout</Text>
+                <Text style={styles.listSubtitle}>Sign out of your account</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
             </TouchableOpacity>

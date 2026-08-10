@@ -85,10 +85,18 @@ function NavigationHandler({ children }: { children: React.ReactNode }) {
         hideSplash();
       }
     } else if (user) {
-      if (inAuthGroup) {
-        router.replace('/(tabs)');
+      if (user.is_first_login === 1) {
+        if (segments[0] !== 'reset-password') {
+          router.replace('/reset-password');
+        } else {
+          hideSplash();
+        }
       } else {
-        hideSplash();
+        if (inAuthGroup || segments[0] === 'reset-password') {
+          router.replace('/(tabs)');
+        } else {
+          hideSplash();
+        }
       }
     }
   }, [user, isLoading, isFirstLaunch, segments]);

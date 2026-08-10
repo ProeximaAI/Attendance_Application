@@ -103,8 +103,12 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (phone && password) {
-      await login({ email: phone, password }); // Adapting to existing context signature
-      router.replace('/(tabs)');
+      try {
+        await login({ phone, password });
+        // Routing is now automatically handled by _layout.tsx based on the user session state
+      } catch (e: any) {
+        alert(e.response?.data?.message || 'Login failed. Please check your credentials.');
+      }
     }
   };
 
@@ -199,7 +203,10 @@ export default function LoginScreen() {
                     />
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.forgotPasswordContainer}>
+                <TouchableOpacity 
+                  style={styles.forgotPasswordContainer}
+                  onPress={() => router.push('/reset-password')}
+                >
                   <Text style={styles.forgotPasswordText}>Forgot password?</Text>
                 </TouchableOpacity>
               </View>

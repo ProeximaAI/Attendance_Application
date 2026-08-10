@@ -1,10 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useEffect, useState } from 'react';
+import { authService } from '../services/authService';
+import { TokenManager } from '../utils/tokenManager';
 
 type User = {
   id: number;
   name: string;
   role: string;
+  is_first_login?: number;
 };
 
 type AuthContextType = {
@@ -45,8 +48,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setIsFirstLaunch(false);
         }
 
-        // Ensure user is null on load to force login screen
-        setUser(null);
+        // Check if we have an existing session
+        const token = await TokenManager.getAccessToken();
+        if (token) {
+          try {
+            const userData = await authService.me();
+            setUser(userData);
+          } catch (e) {
+            // Token invalid or expired without refresh working
+            await TokenManager.clearTokens();
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
       } catch (e) {
         console.error('Failed to load state', e);
       } finally {
@@ -69,14 +84,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (credentials: any) => {
     setIsLoading(true);
     try {
-      // Mocking successful login for the demo
-      setUser({
-        id: 1,
-        name: 'Swarup Kumar Behera',
-        role: 'Software Developer',
-      });
+      const response = await authService.login(credentials);
+      
+      const { token, user: userData } = response.data;
+      await TokenManager.setAccessToken(token);
+
+      // Extract refresh token from headers
+      const setCookie = response.headers['set-cookie'];
+      if (setCookie) {
+        const cookieStr = Array.isArray(setCookie) ? setCookie.find((c: string) => c.startsWith('refresh_token=')) : setCookie;
+        if (cookieStr) {
+          const newRefreshToken = cookieStr.split(';')[0].split('=')[1];
+          await TokenManager.setRefreshToken(newRefreshToken);
+        }
+      }
+
+      setUser(userData);
     } catch (error) {
       console.error(error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -85,10 +111,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     setIsLoading(true);
     try {
-      setUser(null);
+      await authService.logout();
     } catch (error) {
       console.error(error);
     } finally {
+      await TokenManager.clearTokens();
+      setUser(null);
       setIsLoading(false);
     }
   };

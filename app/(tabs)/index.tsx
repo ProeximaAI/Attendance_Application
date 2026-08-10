@@ -2,16 +2,49 @@ import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } fro
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 // Keep the linear-gradient import as requested, but don't use it.
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { Text } from '../../components/Themed';
 import { COLORS, SIZES } from '../../constants/theme';
 import { CheckInContext } from '../../context/CheckInContext';
 import { useAuth } from '../../hooks/useAuth';
+import { attendanceService, AttendanceHistoryItem, MonthStats } from '../../services/attendanceService';
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { punchInTime } = useContext(CheckInContext);
+  const { punchInTime, punchOutTime, attendanceStatus } = useContext(CheckInContext);
+
+  const [weeklyHistory, setWeeklyHistory] = useState<AttendanceHistoryItem[]>([]);
+  const [monthStats, setMonthStats] = useState<MonthStats | null>(null);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        const [historyResponse, dashboardResponse] = await Promise.all([
+          attendanceService.getWeeklyHistory(),
+          attendanceService.getDashboardStats()
+        ]);
+
+        if (historyResponse.success && historyResponse.data) {
+          setWeeklyHistory([...historyResponse.data].reverse());
+        }
+
+        if (dashboardResponse.success && dashboardResponse.data?.month_stats) {
+          setMonthStats(dashboardResponse.data.month_stats);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data', error);
+      }
+    };
+    fetchAllData();
+  }, []);
+
+  const getStatusText = (status: string | null) => {
+    if (status === 'present') return 'On Time';
+    if (status === 'late') return 'Late';
+    return status || 'N/A';
+  };
 
   /* // Check-in state moved to CheckInContext
   const [isCameraModalVisible, setIsCameraModalVisible] = useState(false);
@@ -165,8 +198,10 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.cardTitle}>Check In</Text>
               </View>
-              <Text style={styles.cardValue}>{punchInTime ? punchInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:20 am'}</Text>
-              <Text style={styles.cardSubtitle}>On Time</Text>
+              <Text style={styles.cardValue}>
+                {punchInTime ? punchInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+              </Text>
+              <Text style={styles.cardSubtitle}>{punchInTime ? getStatusText(attendanceStatus) : 'Absent'}</Text>
             </View>
 
             <View style={styles.attendanceCard}>
@@ -176,8 +211,10 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.cardTitle}>Check Out</Text>
               </View>
-              <Text style={styles.cardValue}>07:00 pm</Text>
-              <Text style={styles.cardSubtitle}>Go Home</Text>
+              <Text style={styles.cardValue}>
+                {punchOutTime ? punchOutTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+              </Text>
+              <Text style={styles.cardSubtitle}>{punchOutTime ? 'Go Home' : 'Pending'}</Text>
             </View>
 
             <View style={styles.attendanceCard}>
@@ -187,7 +224,7 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.cardTitle}>Absence</Text>
               </View>
-              <Text style={styles.cardValue}>3 Day</Text>
+              <Text style={styles.cardValue}>{monthStats?.absent ?? 0} Day</Text>
               <Text style={styles.cardSubtitle}>{new Date().toLocaleDateString('en-US', { month: 'long' })}</Text>
             </View>
 
@@ -198,7 +235,7 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.cardTitle}>Total Days</Text>
               </View>
-              <Text style={styles.cardValue}>28</Text>
+              <Text style={styles.cardValue}>{monthStats?.total_days ?? 0}</Text>
               <Text style={styles.cardSubtitle}>Working Days</Text>
             </View>
           </View>
@@ -206,97 +243,61 @@ export default function HomeScreen() {
           {/* Attendance Log */}
           <View style={styles.activityHeaderRow}>
             <Text style={styles.sectionTitle}>Attendance Log</Text>
-            <TouchableOpacity>
-              <Text style={styles.viewAllText}>See More</Text>
-            </TouchableOpacity>
+            {weeklyHistory.length > 4 && (
+              <TouchableOpacity onPress={() => setShowAllHistory(!showAllHistory)}>
+                <Text style={styles.viewAllText}>{showAllHistory ? 'See Less' : 'See More'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          <View style={styles.historyCard}>
-            <View style={[styles.historyDateBlock, { backgroundColor: COLORS.primary }]}>
-              <Text style={styles.historyDateNumber}>22</Text>
-              <Text style={styles.historyDateDay}>Wed</Text>
-            </View>
-            <View style={styles.historyDetails}>
-              <View style={styles.historyTimesRow}>
-                <View style={styles.historyTimeItem}>
-                  <Text style={styles.historyTimeValue}>07:57</Text>
-                  <Text style={styles.historyTimeLabel}>Check In</Text>
-                </View>
-                <View style={styles.historyDivider} />
-                <View style={styles.historyTimeItem}>
-                  <Text style={styles.historyTimeValue}>17:00</Text>
-                  <Text style={styles.historyTimeLabel}>Check out</Text>
-                </View>
-                <View style={styles.historyDivider} />
-                <View style={styles.historyTimeItem}>
-                  <Text style={styles.historyTimeValue}>08:03</Text>
-                  <Text style={styles.historyTimeLabel}>Total Hours</Text>
-                </View>
-              </View>
-              <View style={styles.historyLocationRow}>
-                <Ionicons name="location" size={12} color={COLORS.primary} />
-                <Text style={styles.historyLocationText}>Office, Bhubaneswar, Odisha</Text>
-              </View>
-            </View>
-          </View>
+          {(showAllHistory ? weeklyHistory : weeklyHistory.slice(0, 4)).map((item, index) => {
+            const itemDate = new Date(item.date);
+            const dateNumber = itemDate.getDate().toString().padStart(2, '0');
+            const dateDay = itemDate.toLocaleDateString('en-US', { weekday: 'short' });
+            
+            const checkInStr = item.attendance_data?.checkin_time 
+              ? new Date(item.attendance_data.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+              : '--:--';
+              
+            const checkOutStr = item.attendance_data?.checkout_time 
+              ? new Date(item.attendance_data.checkout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+              : '--:--';
+              
+            const totalHoursStr = item.attendance_data?.total_hours 
+              ? `${item.attendance_data.total_hours}` 
+              : '--:--';
 
-          <View style={styles.historyCard}>
-            <View style={[styles.historyDateBlock, { backgroundColor: COLORS.primary }]}>
-              <Text style={styles.historyDateNumber}>21</Text>
-              <Text style={styles.historyDateDay}>Tue</Text>
-            </View>
-            <View style={styles.historyDetails}>
-              <View style={styles.historyTimesRow}>
-                <View style={styles.historyTimeItem}>
-                  <Text style={styles.historyTimeValue}>08:03</Text>
-                  <Text style={styles.historyTimeLabel}>Check In</Text>
+            return (
+              <View key={index} style={styles.historyCard}>
+                <View style={[styles.historyDateBlock, { backgroundColor: COLORS.primary }]}>
+                  <Text style={styles.historyDateNumber}>{dateNumber}</Text>
+                  <Text style={styles.historyDateDay}>{dateDay}</Text>
                 </View>
-                <View style={styles.historyDivider} />
-                <View style={styles.historyTimeItem}>
-                  <Text style={styles.historyTimeValue}>17:08</Text>
-                  <Text style={styles.historyTimeLabel}>Check out</Text>
-                </View>
-                <View style={styles.historyDivider} />
-                <View style={styles.historyTimeItem}>
-                  <Text style={styles.historyTimeValue}>08:05</Text>
-                  <Text style={styles.historyTimeLabel}>Total Hours</Text>
-                </View>
-              </View>
-              <View style={styles.historyLocationRow}>
-                <Ionicons name="location" size={12} color={COLORS.primary} />
-                <Text style={styles.historyLocationText}>Office, Bhubaneswar, Odisha</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.historyCard}>
-            <View style={[styles.historyDateBlock, { backgroundColor: COLORS.primary }]}>
-              <Text style={styles.historyDateNumber}>20</Text>
-              <Text style={styles.historyDateDay}>Mon</Text>
-            </View>
-            <View style={styles.historyDetails}>
-              <View style={styles.historyTimesRow}>
-                <View style={styles.historyTimeItem}>
-                  <Text style={styles.historyTimeValue}>07:59</Text>
-                  <Text style={styles.historyTimeLabel}>Check In</Text>
-                </View>
-                <View style={styles.historyDivider} />
-                <View style={styles.historyTimeItem}>
-                  <Text style={styles.historyTimeValue}>17:00</Text>
-                  <Text style={styles.historyTimeLabel}>Check out</Text>
-                </View>
-                <View style={styles.historyDivider} />
-                <View style={styles.historyTimeItem}>
-                  <Text style={styles.historyTimeValue}>08:01</Text>
-                  <Text style={styles.historyTimeLabel}>Total Hours</Text>
+                <View style={styles.historyDetails}>
+                  <View style={styles.historyTimesRow}>
+                    <View style={styles.historyTimeItem}>
+                      <Text style={styles.historyTimeValue}>{checkInStr}</Text>
+                      <Text style={styles.historyTimeLabel}>Check In</Text>
+                    </View>
+                    <View style={styles.historyDivider} />
+                    <View style={styles.historyTimeItem}>
+                      <Text style={styles.historyTimeValue}>{checkOutStr}</Text>
+                      <Text style={styles.historyTimeLabel}>Check out</Text>
+                    </View>
+                    <View style={styles.historyDivider} />
+                    <View style={styles.historyTimeItem}>
+                      <Text style={styles.historyTimeValue}>{totalHoursStr}</Text>
+                      <Text style={styles.historyTimeLabel}>Total Hours</Text>
+                    </View>
+                  </View>
+                  <View style={styles.historyLocationRow}>
+                    <Ionicons name="location" size={12} color={COLORS.primary} />
+                    <Text style={styles.historyLocationText}>Office, Bhubaneswar, Odisha</Text>
+                  </View>
                 </View>
               </View>
-              <View style={styles.historyLocationRow}>
-                <Ionicons name="location" size={12} color={COLORS.primary} />
-                <Text style={styles.historyLocationText}>Office, Bhubaneswar, Odisha</Text>
-              </View>
-            </View>
-          </View>
+            );
+          })}
 
           {/* Live Location Card */}
           <View style={styles.liveLocationContainer}>

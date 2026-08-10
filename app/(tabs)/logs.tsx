@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MonthlySummaryCard } from '../../components/MonthlySummaryCard';
 import { Text } from '../../components/Themed';
 import { COLORS } from '../../constants/theme';
+import { attendanceService, AttendanceHistoryItem } from '../../services/attendanceService';
 
 interface AttendanceLog {
   day: number;
@@ -59,6 +60,23 @@ export default function LogsScreen() {
   const [pickerYear, setPickerYear] = useState<number>(CURRENT_ACTUAL_YEAR);
 
   const yearScrollRef = useRef<ScrollView>(null);
+
+  // New state for real weekly history
+  const [weeklyHistory, setWeeklyHistory] = useState<AttendanceHistoryItem[]>([]);
+
+  React.useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const response = await attendanceService.getWeeklyHistory();
+        if (response.success && response.data) {
+          setWeeklyHistory([...response.data].reverse());
+        }
+      } catch (error) {
+        console.error('Failed to fetch weekly history in logs', error);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -329,42 +347,57 @@ export default function LogsScreen() {
 
           {/* Attendance Cards List */}
           <View style={styles.listContainer}>
-            {displayLogs.length === 0 ? (
+            {weeklyHistory.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="calendar-outline" size={36} color={COLORS.textMuted} style={{ marginBottom: 8 }} />
-                <Text style={styles.emptyText}>No attendance records found for this month yet.</Text>
+                <Text style={styles.emptyText}>No attendance records found for this week yet.</Text>
               </View>
             ) : (
-              displayLogs.map((item) => {
-                const isHighlighted = item.day === selectedDay;
+              weeklyHistory.map((item, index) => {
+                const itemDate = new Date(item.date);
+                const dayNumber = itemDate.getDate().toString().padStart(2, '0');
+                const dayName = itemDate.toLocaleDateString('en-US', { weekday: 'short' });
+                const isHighlighted = itemDate.getDate() === selectedDay;
+
+                const checkInStr = item.attendance_data?.checkin_time 
+                  ? new Date(item.attendance_data.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+                  : '--:--';
+                  
+                const checkOutStr = item.attendance_data?.checkout_time 
+                  ? new Date(item.attendance_data.checkout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+                  : '--:--';
+                  
+                const totalHoursStr = item.attendance_data?.total_hours 
+                  ? `${item.attendance_data.total_hours}` 
+                  : '--:--';
 
                 if (isHighlighted) {
                   return (
-                    <View key={item.day} style={styles.highlightedCard}>
+                    <View key={index} style={styles.highlightedCard}>
                       <View style={styles.highlightedLeftBox}>
-                        <Text style={styles.highlightedDayNumber}>{item.day}</Text>
-                        <Text style={styles.highlightedDayName}>{item.dayName}</Text>
+                        <Text style={styles.highlightedDayNumber}>{dayNumber}</Text>
+                        <Text style={styles.highlightedDayName}>{dayName}</Text>
                       </View>
 
                       <View style={styles.cardRightInfo}>
                         <View style={styles.timesRow}>
                           <View style={styles.timeItem}>
-                            <Text style={styles.highlightedTimeValue}>{item.checkIn}</Text>
+                            <Text style={styles.highlightedTimeValue}>{checkInStr}</Text>
                             <Text style={styles.highlightedTimeLabel}>Check In</Text>
                           </View>
                           <View style={styles.timeItem}>
-                            <Text style={styles.highlightedTimeValue}>{item.checkOut}</Text>
+                            <Text style={styles.highlightedTimeValue}>{checkOutStr}</Text>
                             <Text style={styles.highlightedTimeLabel}>Check out</Text>
                           </View>
                           <View style={styles.timeItem}>
-                            <Text style={styles.highlightedTimeValue}>{item.totalHours}</Text>
+                            <Text style={styles.highlightedTimeValue}>{totalHoursStr}</Text>
                             <Text style={styles.highlightedTimeLabel}>Total Hours</Text>
                           </View>
                         </View>
 
                         <View style={styles.locationRow}>
                           <MaterialCommunityIcons name="map-marker" size={16} color="#FFFFFF" style={styles.pinIcon} />
-                          <Text style={styles.highlightedLocationText} numberOfLines={1}>{item.location}</Text>
+                          <Text style={styles.highlightedLocationText} numberOfLines={1}>Office, Bhubaneswar, Odisha</Text>
                         </View>
                       </View>
                     </View>
@@ -374,40 +407,41 @@ export default function LogsScreen() {
                 // Normal Card
                 return (
                   <TouchableOpacity
-                    key={item.day}
+                    key={index}
                     style={styles.normalCard}
                     activeOpacity={0.8}
-                    onPress={() => handleDayPress(item.day)}
+                    onPress={() => handleDayPress(itemDate.getDate())}
                   >
                     <View style={styles.normalLeftBox}>
-                      <Text style={styles.normalDayNumber}>{item.day}</Text>
-                      <Text style={styles.normalDayName}>{item.dayName}</Text>
+                      <Text style={styles.normalDayNumber}>{dayNumber}</Text>
+                      <Text style={styles.normalDayName}>{dayName}</Text>
                     </View>
 
                     <View style={styles.cardRightInfo}>
                       <View style={styles.timesRow}>
                         <View style={styles.timeItem}>
-                          <Text style={styles.normalTimeValue}>{item.checkIn}</Text>
+                          <Text style={styles.normalTimeValue}>{checkInStr}</Text>
                           <Text style={styles.normalTimeLabel}>Check In</Text>
                         </View>
                         <View style={styles.timeItem}>
-                          <Text style={styles.normalTimeValue}>{item.checkOut}</Text>
+                          <Text style={styles.normalTimeValue}>{checkOutStr}</Text>
                           <Text style={styles.normalTimeLabel}>Check out</Text>
                         </View>
                         <View style={styles.timeItem}>
-                          <Text style={styles.normalTimeValue}>{item.totalHours}</Text>
+                          <Text style={styles.normalTimeValue}>{totalHoursStr}</Text>
                           <Text style={styles.normalTimeLabel}>Total Hours</Text>
                         </View>
                       </View>
 
                       <View style={styles.locationRow}>
                         <MaterialCommunityIcons name="map-marker" size={16} color={COLORS.primary} style={styles.pinIcon} />
-                        <Text style={styles.normalLocationText} numberOfLines={1}>{item.location}</Text>
+                        <Text style={styles.normalLocationText} numberOfLines={1}>Office, Bhubaneswar, Odisha</Text>
                       </View>
                     </View>
                   </TouchableOpacity>
                 );
-              }))}
+              })
+            )}
           </View>
 
           {/* Monthly Summary Section */}

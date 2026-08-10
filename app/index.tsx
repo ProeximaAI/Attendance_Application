@@ -15,6 +15,9 @@ export default function Index() {
   } else if (!user) {
     return <Redirect href="/login" />;
   } else {
+    if (user.is_first_login === 1) {
+      return <Redirect href="/reset-password" />;
+    }
     return <Redirect href="/(tabs)" />;
   }
 }
