@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { attendanceService, LeaveBalance, LeaveHistoryItem, ApplyLeavePayload } from '../../services/attendanceService';
 import {
   Alert,
   Dimensions,
@@ -64,37 +65,65 @@ export default function LeavesScreen() {
     }
   }, [fromDate, toDate, isHalfDay]);
 
-  // Recent Requests State
-  const [requests, setRequests] = useState<LeaveRequest[]>([
-    {
-      id: '1',
-      dateRange: '3 - 4 Jul',
-      type: 'Casual leave',
-      status: 'Pending',
-    },
-    {
-      id: '2',
-      dateRange: '18 Jun',
-      type: 'Sick leave',
-      status: 'Approved',
-    },
-    {
-      id: '3',
-      dateRange: '2 - 6 Jun',
-      type: 'Compensatory off',
-      status: 'Approved',
-    },
-  ]);
+  // Balance State
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
+  const [requests, setRequests] = useState<LeaveRequest[]>([]);
 
-  // Balance lookup for selected tab
-  const leaveStats: Record<LeaveType, { opening: number; accrued: number; used: number; balance: number | string }> = {
-    Casual: { opening: 12, accrued: 0, used: 6, balance: 6 },
-    Sick: { opening: 8, accrued: 0, used: 4, balance: 4 },
-    'Compensatory off': { opening: 15, accrued: 0, used: 5, balance: 10 },
-    LOP: { opening: 0, accrued: 0, used: 1, balance: 'N/A' },
+  const fetchLeaveData = async () => {
+    try {
+      const balancesRes = await attendanceService.getLeaveBalances();
+      if (balancesRes.success && balancesRes.data) {
+        setLeaveBalances(balancesRes.data);
+      }
+      
+      const historyRes = await attendanceService.getLeaveHistory();
+      if (historyRes.success && historyRes.data) {
+        const mappedHistory = historyRes.data.map((item: LeaveHistoryItem) => {
+          let typeLabel = item.leave_type;
+          if (item.leave_type === 'CL') typeLabel = 'Casual';
+          else if (item.leave_type === 'SL') typeLabel = 'Sick';
+          else if (item.leave_type === 'CO') typeLabel = 'Compensatory off';
+          else if (item.leave_type === 'LOP') typeLabel = 'LOP';
+          
+          return {
+            id: item.id.toString(),
+            dateRange: `${new Date(item.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${new Date(item.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
+            type: `${typeLabel} leave`,
+            status: (item.status.charAt(0).toUpperCase() + item.status.slice(1)) as 'Pending' | 'Approved'
+          };
+        });
+        setRequests(mappedHistory as any);
+      }
+    } catch (error) {
+      console.error('Error fetching leave data:', error);
+    }
   };
 
-  const currentStats = leaveStats[selectedType];
+  useEffect(() => {
+    fetchLeaveData();
+  }, []);
+
+  const getStatsForType = (type: LeaveType) => {
+    let code = 'CL';
+    if (type === 'Casual') code = 'CL';
+    else if (type === 'Sick') code = 'SL';
+    else if (type === 'Compensatory off') code = 'CO';
+    else if (type === 'LOP') code = 'LOP';
+    
+    const bal = leaveBalances.find(b => b.leave_type === code);
+    if (!bal) {
+      return { opening: type === 'Casual' ? 12 : type === 'Sick' ? 8 : type === 'Compensatory off' ? 15 : 0, accrued: 0, used: 0, balance: type === 'LOP' ? 'N/A' : 0 };
+    }
+    
+    return {
+      opening: parseFloat(bal.allocated_days),
+      accrued: 0,
+      used: parseFloat(bal.used_days),
+      balance: type === 'LOP' ? 'N/A' : parseFloat(bal.remaining_days),
+    };
+  };
+
+  const currentStats = getStatsForType(selectedType);
 
   // Monthly usage bar data (Feb to Jul)
   const monthlyUsage = [
@@ -106,22 +135,46 @@ export default function LeavesScreen() {
     { month: 'Jul', days: 5, maxDays: 5 },
   ];
 
-  const handleSendRequest = () => {
+  const handleSendRequest = async () => {
     if (!reason.trim()) {
       Alert.alert('Validation Error', 'Please enter a reason for your leave request.');
       return;
     }
 
-    const newReq: LeaveRequest = {
-      id: Date.now().toString(),
-      dateRange: `${fromDate.slice(0, 5)} - ${toDate.slice(0, 5)}`,
-      type: `${selectedType} leave`,
-      status: 'Pending',
+    let code = 'CL';
+    if (selectedType === 'Casual') code = 'CL';
+    else if (selectedType === 'Sick') code = 'SL';
+    else if (selectedType === 'Compensatory off') code = 'CO';
+    else if (selectedType === 'LOP') code = 'LOP';
+
+    const formatDateForAPI = (dateStr: string) => {
+      const [dd, mm, yyyy] = dateStr.split('-');
+      return `${yyyy}-${mm}-${dd}`;
     };
 
-    setRequests([newReq, ...requests]);
-    setReason('');
-    Alert.alert('Request Sent', `Your ${selectedType.toLowerCase()} leave request has been submitted for approval.`);
+    let duration = 'full_day';
+    if (isHalfDay) {
+      duration = halfDayPeriod === '1st half' ? 'first_half' : 'second_half';
+    }
+
+    try {
+      const res = await attendanceService.applyForLeave({
+        leave_type: code,
+        leave_duration: duration,
+        start_date: formatDateForAPI(fromDate),
+        end_date: formatDateForAPI(toDate),
+        reason: reason.trim()
+      });
+
+      if (res.success) {
+        setReason('');
+        setIsHalfDay(false);
+        Alert.alert('Request Sent', `Your ${selectedType.toLowerCase()} leave request has been submitted successfully.`);
+        fetchLeaveData();
+      }
+    } catch (error: any) {
+      Alert.alert('Request Failed', error.message || 'Failed to apply for leave. Please try again.');
+    }
   };
 
   return (
@@ -174,8 +227,8 @@ export default function LeavesScreen() {
                   <Text style={[styles.cardPillText, { color: '#2563EB' }]}>50%</Text>
                 </View>
               </View>
-              <Text style={styles.cardStatValue}>6 Days</Text>
-              <Text style={[styles.cardStatLabel, { color: '#2563EB' }]}>Casual (from 12 days)</Text>
+              <Text style={styles.cardStatValue}>{getStatsForType('Casual').balance} Days</Text>
+              <Text style={[styles.cardStatLabel, { color: '#2563EB' }]}>Casual (from {getStatsForType('Casual').opening} days)</Text>
             </TouchableOpacity>
 
             {/* Sick Card */}
@@ -192,8 +245,8 @@ export default function LeavesScreen() {
                   <Text style={[styles.cardPillText, { color: '#7C3AED' }]}>50%</Text>
                 </View>
               </View>
-              <Text style={styles.cardStatValue}>4 Days</Text>
-              <Text style={[styles.cardStatLabel, { color: '#7C3AED' }]}>Sick (from 8 days)</Text>
+              <Text style={styles.cardStatValue}>{getStatsForType('Sick').balance} Days</Text>
+              <Text style={[styles.cardStatLabel, { color: '#7C3AED' }]}>Sick (from {getStatsForType('Sick').opening} days)</Text>
             </TouchableOpacity>
           </View>
 
@@ -212,8 +265,8 @@ export default function LeavesScreen() {
                   <Text style={[styles.cardPillText, { color: '#D97706' }]}>Paid</Text>
                 </View>
               </View>
-              <Text style={styles.cardStatValue}>10 Days</Text>
-              <Text style={[styles.cardStatLabel, { color: '#D97706' }]}>Compensatory off (from 15 days)</Text>
+              <Text style={styles.cardStatValue}>{getStatsForType('Compensatory off').balance} Days</Text>
+              <Text style={[styles.cardStatLabel, { color: '#D97706' }]}>Compensatory off (from {getStatsForType('Compensatory off').opening} days)</Text>
             </TouchableOpacity>
 
             {/* LOP Card */}
@@ -230,7 +283,7 @@ export default function LeavesScreen() {
                   <Text style={[styles.cardPillText, { color: '#E11D48' }]}>Deducted</Text>
                 </View>
               </View>
-              <Text style={styles.cardStatValue}>1 Day</Text>
+              <Text style={styles.cardStatValue}>{getStatsForType('LOP').used} Day</Text>
               <Text style={[styles.cardStatLabel, { color: '#E11D48' }]}>LOP (Used)</Text>
             </TouchableOpacity>
           </View>

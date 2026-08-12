@@ -7,31 +7,24 @@ interface MonthlySummaryProps {
   presentDays?: number;
   absentDays?: number;
   lateDays?: number;
-  holidayDays?: number;
+  wfhDays?: number;
   totalWorkHours?: string;
   totalDays?: number;
+  onExport?: (format: 'PDF' | 'EXCEL') => void;
 }
 
 export const MonthlySummaryCard: React.FC<MonthlySummaryProps> = ({
   presentDays = 18,
   absentDays = 1,
   lateDays = 3,
-  holidayDays = 4,
+  wfhDays = 4,
   totalWorkHours = '142h 35m',
   totalDays = 26,
+  onExport = () => {},
 }) => {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
 
-  const handleExportReport = (format: 'PDF' | 'EXCEL') => {
-    setIsMenuVisible(false);
-    Alert.alert(
-      'Export Monthly Report',
-      `Your monthly attendance summary has been compiled and exported as ${format} successfully.`,
-      [{ text: 'OK', style: 'default' }]
-    );
-  };
-
-  const totalSum = Math.max(1, presentDays + absentDays + holidayDays);
+  const totalSum = Math.max(1, presentDays + absentDays + wfhDays);
   const presentPct = Math.round((presentDays / totalSum) * 100);
 
   return (
@@ -73,7 +66,7 @@ export const MonthlySummaryCard: React.FC<MonthlySummaryProps> = ({
             </View>
           </View>
           <Text style={[styles.statValue, { color: '#881337' }]}>{absentDays} Day</Text>
-          <Text style={[styles.statLabel, { color: '#F43F5E' }]}>Unplanned Leaves</Text>
+          <Text style={[styles.statLabel, { color: '#F43F5E' }]}>Leaves</Text>
         </View>
 
         {/* Late Check-ins Card */}
@@ -90,18 +83,18 @@ export const MonthlySummaryCard: React.FC<MonthlySummaryProps> = ({
           <Text style={[styles.statLabel, { color: '#D97706' }]}>Late Arrivals</Text>
         </View>
 
-        {/* Holidays Card */}
+        {/* WFH Card */}
         <View style={[styles.pastelCard, { backgroundColor: '#F5F3FF' }]}>
           <View style={styles.cardHeaderRow}>
             <View style={[styles.iconBadge, { backgroundColor: '#EDE9FE' }]}>
-              <Ionicons name="calendar" size={22} color="#7C3AED" />
+              <Ionicons name="home" size={22} color="#7C3AED" />
             </View>
             <View style={[styles.statusPill, { backgroundColor: '#EDE9FE' }]}>
               <Text style={[styles.pillText, { color: '#7C3AED' }]}>Paid</Text>
             </View>
           </View>
-          <Text style={[styles.statValue, { color: '#4C1D95' }]}>{holidayDays} Days</Text>
-          <Text style={[styles.statLabel, { color: '#8B5CF6' }]}>Holidays & WFH</Text>
+          <Text style={[styles.statValue, { color: '#4C1D95' }]}>{wfhDays} Days</Text>
+          <Text style={[styles.statLabel, { color: '#8B5CF6' }]}>Work from Home</Text>
         </View>
       </View>
 
@@ -179,7 +172,7 @@ export const MonthlySummaryCard: React.FC<MonthlySummaryProps> = ({
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#111827' }]} />
-            <Text style={styles.legendText}>Holiday ({holidayDays})</Text>
+            <Text style={styles.legendText}>WFH ({wfhDays})</Text>
           </View>
         </View>
       </View>
@@ -202,7 +195,10 @@ export const MonthlySummaryCard: React.FC<MonthlySummaryProps> = ({
 
             <TouchableOpacity
               style={styles.menuOption}
-              onPress={() => handleExportReport('PDF')}
+              onPress={() => {
+                setIsMenuVisible(false);
+                onExport('PDF');
+              }}
             >
               <View style={[styles.menuOptionIcon, { backgroundColor: '#FEE2E2' }]}>
                 <Ionicons name="document-text" size={20} color="#EF4444" />
@@ -216,7 +212,10 @@ export const MonthlySummaryCard: React.FC<MonthlySummaryProps> = ({
 
             <TouchableOpacity
               style={styles.menuOption}
-              onPress={() => handleExportReport('EXCEL')}
+              onPress={() => {
+                setIsMenuVisible(false);
+                onExport('EXCEL');
+              }}
             >
               <View style={[styles.menuOptionIcon, { backgroundColor: '#DCFCE7' }]}>
                 <Ionicons name="grid" size={20} color="#10B981" />

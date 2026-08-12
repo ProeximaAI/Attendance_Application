@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   Modal,
@@ -15,54 +15,49 @@ import { Text } from '../components/Themed';
 import { COLORS } from '../constants/theme';
 import { attendanceService } from '../services/attendanceService';
 
-
-type DurationType = 'Full Day' | '1st Half' | '2nd Half';
-
-export default function DutyRequestScreen() {
+export default function AttendanceCorrectionScreen() {
   const router = useRouter();
-  const { type = 'Outdoor Duty', initialDate = '08-07-2026' } = useLocalSearchParams<{
-    type?: string;
-    initialDate?: string;
-  }>();
+  const { initialDate } = useLocalSearchParams<{ initialDate?: string }>();
 
-  const [fromDate, setFromDate] = useState(initialDate);
-  const [toDate, setToDate] = useState(initialDate);
-  const [duration, setDuration] = useState<DurationType>('Full Day');
+  // Default to today if not provided
+  const getToday = () => {
+    const d = new Date();
+    return `${d.getDate().toString().padStart(2, '0')}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
+  };
+
+  const [date, setDate] = useState(initialDate || getToday());
+  const [timeIn, setTimeIn] = useState('09:00');
+  const [timeOut, setTimeOut] = useState('18:00');
   const [reason, setReason] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Calendar Picker State
-  const [activeDateField, setActiveDateField] = useState<'from' | 'to' | null>(null);
+  // Modals
+  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
   const [pickerDate, setPickerDate] = useState(new Date());
 
-  // Duration Picker State
-  const [isDurationPickerVisible, setIsDurationPickerVisible] = useState(false);
+  const [isTimePickerVisible, setIsTimePickerVisible] = useState<'in' | 'out' | null>(null);
+  const [tempHour, setTempHour] = useState('09');
+  const [tempMinute, setTempMinute] = useState('00');
 
-  const openCalendar = (field: 'from' | 'to') => {
-    setActiveDateField(field);
-    setPickerDate(new Date());
-  };
-
-  const parseDate = (str: string) => {
-    const [dd, mm, yyyy] = str.split('-').map(Number);
-    return new Date(yyyy || 2026, (mm || 1) - 1, dd || 1);
-  };
-
-  const calculatedDays = useMemo(() => {
-    try {
-      const start = parseDate(fromDate);
-      const end = parseDate(toDate);
-      const diffTime = end.getTime() - start.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      if (diffDays <= 0) return 0;
-      if (diffDays === 1 && duration !== 'Full Day') {
-        return 0.5;
-      }
-      return diffDays;
-    } catch (e) {
-      return 1;
+  const openTimePicker = (field: 'in' | 'out') => {
+    const timeToEdit = field === 'in' ? timeIn : timeOut;
+    if (timeToEdit) {
+      const [h, m] = timeToEdit.split(':');
+      setTempHour(h);
+      setTempMinute(m);
     }
-  }, [fromDate, toDate, duration]);
+    setIsTimePickerVisible(field);
+  };
+
+  const saveTime = () => {
+    const formattedTime = `${tempHour}:${tempMinute}`;
+    if (isTimePickerVisible === 'in') {
+      setTimeIn(formattedTime);
+    } else {
+      setTimeOut(formattedTime);
+    }
+    setIsTimePickerVisible(null);
+  };
 
   const formatDateForApi = (dateStr: string) => {
     const [dd, mm, yyyy] = dateStr.split('-');
@@ -71,29 +66,30 @@ export default function DutyRequestScreen() {
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
-      Alert.alert('Validation Error', 'Please enter a reason for your request.');
+      Alert.alert('Validation Error', 'Please enter a reason for the correction.');
+      return;
+    }
+
+    if (!timeIn && !timeOut) {
+      Alert.alert('Validation Error', 'Please provide either Time In or Time Out.');
       return;
     }
 
     setIsLoading(true);
     try {
-      let response;
       const payload = {
-        start_date: formatDateForApi(fromDate),
-        end_date: formatDateForApi(toDate),
-        reason: reason.trim() + (duration !== 'Full Day' ? ` (Duration: ${duration})` : ''),
+        date: formatDateForApi(date),
+        time_in: timeIn ? `${timeIn}:00` : undefined,
+        time_out: timeOut ? `${timeOut}:00` : undefined,
+        reason: reason.trim(),
       };
 
-      if (type === 'Work From Home') {
-        response = await attendanceService.requestWfh(payload);
-      } else {
-        response = await attendanceService.requestOutdoor(payload);
-      }
+      const response = await attendanceService.requestTimeCorrection(payload);
 
       // If we reach here, the API call was successful (2xx response)
       Alert.alert(
         'Request Submitted',
-        response?.message || `Your ${type.toLowerCase()} request has been submitted successfully.`,
+        response?.message || 'Time correction has been submitted successfully.',
         [{ text: 'OK', onPress: () => router.push('/(tabs)/logs') }]
       );
     } catch (error: any) {
@@ -106,64 +102,61 @@ export default function DutyRequestScreen() {
     }
   };
 
-  const daysLabel = type === 'Work From Home' ? 'Work from home days' : 'Outdoor duty days';
+  const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+  const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header matching current application aesthetic */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add {type}</Text>
+        <Text style={styles.headerTitle}>Attendance Correction</Text>
         <View style={styles.headerRightSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.formCard}>
-          {/* From Field with Date + Duration Dropdown */}
+          {/* Date Field */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>From</Text>
-            <View style={styles.combinedRow}>
-              <TouchableOpacity
-                style={styles.dateBoxLeft}
-                onPress={() => openCalendar('from')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="calendar-outline" size={18} color={COLORS.primary} style={styles.iconMargin} />
-                <Text style={styles.dateText}>{fromDate}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.durationDropdown}
-                onPress={() => setIsDurationPickerVisible(true)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.durationText}>{duration}</Text>
-                <Ionicons name="chevron-down" size={16} color={COLORS.textMuted} style={{ marginLeft: 6 }} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* To Field */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>To</Text>
+            <Text style={styles.fieldLabel}>Date</Text>
             <TouchableOpacity
               style={styles.dateBoxFull}
-              onPress={() => openCalendar('to')}
+              onPress={() => setIsDatePickerVisible(true)}
               activeOpacity={0.8}
             >
               <Ionicons name="calendar-outline" size={18} color={COLORS.primary} style={styles.iconMargin} />
-              <Text style={styles.dateText}>{toDate}</Text>
+              <Text style={styles.dateText}>{date}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Calculated Days Display */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>{daysLabel}</Text>
-            <Text style={styles.daysValueText}>{calculatedDays}</Text>
-            <View style={styles.dividerLine} />
+          {/* Time Fields */}
+          <View style={styles.timeRow}>
+            <View style={styles.halfField}>
+              <Text style={styles.fieldLabel}>Time In</Text>
+              <TouchableOpacity
+                style={styles.timeBox}
+                onPress={() => openTimePicker('in')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="time-outline" size={18} color={COLORS.primary} style={styles.iconMargin} />
+                <Text style={styles.dateText}>{timeIn || '--:--'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.halfField}>
+              <Text style={styles.fieldLabel}>Time Out</Text>
+              <TouchableOpacity
+                style={styles.timeBox}
+                onPress={() => openTimePicker('out')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="time-outline" size={18} color={COLORS.primary} style={styles.iconMargin} />
+                <Text style={styles.dateText}>{timeOut || '--:--'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
+          <View style={styles.dividerLine} />
 
           {/* Reason Field */}
           <View style={styles.fieldContainer}>
@@ -172,7 +165,7 @@ export default function DutyRequestScreen() {
               style={styles.reasonInput}
               multiline
               numberOfLines={3}
-              placeholder={`Enter reason for ${type.toLowerCase()}...`}
+              placeholder="Enter reason for time correction..."
               placeholderTextColor={COLORS.textMuted}
               value={reason}
               onChangeText={setReason}
@@ -183,68 +176,27 @@ export default function DutyRequestScreen() {
 
           {/* Submit Button */}
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} activeOpacity={0.9} disabled={isLoading}>
-            <Text style={styles.submitButtonText}>{isLoading ? 'Submitting...' : 'Submit'}</Text>
+            <Text style={styles.submitButtonText}>{isLoading ? 'Submitting...' : 'Submit Request'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Duration Picker Modal */}
+      {/* Date Picker Modal (reusing structure from duty request) */}
       <Modal
-        visible={isDurationPickerVisible}
+        visible={isDatePickerVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setIsDurationPickerVisible(false)}
+        onRequestClose={() => setIsDatePickerVisible(false)}
       >
         <TouchableOpacity
           style={styles.modalBackdrop}
           activeOpacity={1}
-          onPress={() => setIsDurationPickerVisible(false)}
+          onPress={() => setIsDatePickerVisible(false)}
         >
           <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Duration</Text>
-              <TouchableOpacity onPress={() => setIsDurationPickerVisible(false)} style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={24} color={COLORS.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            {(['Full Day', '1st Half', '2nd Half'] as DurationType[]).map((dur) => (
-              <TouchableOpacity
-                key={dur}
-                style={[styles.durationOption, duration === dur && styles.durationOptionSelected]}
-                onPress={() => {
-                  setDuration(dur);
-                  setIsDurationPickerVisible(false);
-                }}
-              >
-                <Text style={[styles.durationOptionText, duration === dur && styles.durationOptionTextSelected]}>
-                  {dur}
-                </Text>
-                {duration === dur && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Date Picker Modal */}
-      <Modal
-        visible={activeDateField !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setActiveDateField(null)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setActiveDateField(null)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {activeDateField === 'from' ? 'Select From Date' : 'Select To Date'}
-              </Text>
-              <TouchableOpacity onPress={() => setActiveDateField(null)} style={styles.modalCloseBtn}>
+              <Text style={styles.modalTitle}>Select Date</Text>
+              <TouchableOpacity onPress={() => setIsDatePickerVisible(false)} style={styles.modalCloseBtn}>
                 <Ionicons name="close" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
@@ -296,25 +248,15 @@ export default function DutyRequestScreen() {
                   const dd = d < 10 ? `0${d}` : `${d}`;
                   const mm = (mo + 1) < 10 ? `0${mo + 1}` : `${mo + 1}`;
                   const formatted = `${dd}-${mm}-${yr}`;
-                  const isSelected = activeDateField === 'from' ? fromDate === formatted : toDate === formatted;
+                  const isSelected = date === formatted;
 
                   cells.push(
                     <TouchableOpacity
                       key={d}
                       style={styles.calendarCell}
                       onPress={() => {
-                        if (activeDateField === 'from') {
-                          setFromDate(formatted);
-                          if (parseDate(formatted) > parseDate(toDate)) {
-                            setToDate(formatted);
-                          }
-                        } else if (activeDateField === 'to') {
-                          setToDate(formatted);
-                          if (parseDate(formatted) < parseDate(fromDate)) {
-                            setFromDate(formatted);
-                          }
-                        }
-                        setActiveDateField(null);
+                        setDate(formatted);
+                        setIsDatePickerVisible(false);
                       }}
                     >
                       <View
@@ -340,6 +282,71 @@ export default function DutyRequestScreen() {
                 return cells;
               })()}
             </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Time Picker Modal */}
+      <Modal
+        visible={isTimePickerVisible !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsTimePickerVisible(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setIsTimePickerVisible(null)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {isTimePickerVisible === 'in' ? 'Select Time In' : 'Select Time Out'}
+              </Text>
+              <TouchableOpacity onPress={() => setIsTimePickerVisible(null)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={24} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.timePickerContainer}>
+              {/* Hours Column */}
+              <View style={styles.timeColumn}>
+                <Text style={styles.timeColumnTitle}>Hour</Text>
+                <ScrollView style={styles.timeScroll} showsVerticalScrollIndicator={false}>
+                  {HOURS.map((h) => (
+                    <TouchableOpacity
+                      key={`h-${h}`}
+                      style={[styles.timeOption, tempHour === h && styles.timeOptionSelected]}
+                      onPress={() => setTempHour(h)}
+                    >
+                      <Text style={[styles.timeOptionText, tempHour === h && styles.timeOptionTextSelected]}>{h}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <Text style={styles.timeSeparator}>:</Text>
+
+              {/* Minutes Column */}
+              <View style={styles.timeColumn}>
+                <Text style={styles.timeColumnTitle}>Minute</Text>
+                <ScrollView style={styles.timeScroll} showsVerticalScrollIndicator={false}>
+                  {MINUTES.map((m) => (
+                    <TouchableOpacity
+                      key={`m-${m}`}
+                      style={[styles.timeOption, tempMinute === m && styles.timeOptionSelected]}
+                      onPress={() => setTempMinute(m)}
+                    >
+                      <Text style={[styles.timeOptionText, tempMinute === m && styles.timeOptionTextSelected]}>{m}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.modalSubmitBtn} onPress={saveTime}>
+              <Text style={styles.modalSubmitBtnText}>Set Time</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -389,46 +396,31 @@ const styles = StyleSheet.create({
   fieldContainer: {
     marginBottom: 22,
   },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 22,
+  },
+  halfField: {
+    width: '48%',
+  },
   fieldLabel: {
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 8,
   },
-  combinedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dateBoxLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 52,
-  },
-  durationDropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FAFAFA',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 52,
-    minWidth: 110,
-  },
-  durationText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
   dateBoxFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 52,
+  },
+  timeBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FAFAFA',
@@ -446,16 +438,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
-  daysValueText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    paddingVertical: 6,
-  },
   dividerLine: {
     height: 1,
     backgroundColor: '#E5E7EB',
     marginTop: 6,
+    marginBottom: 16,
   },
   reasonInput: {
     fontSize: 15,
@@ -515,31 +502,8 @@ const styles = StyleSheet.create({
   modalCloseBtn: {
     padding: 4,
   },
-  durationOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 8,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  durationOptionSelected: {
-    backgroundColor: '#EEF2FF',
-    borderColor: COLORS.primary,
-  },
-  durationOptionText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  durationOptionTextSelected: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
+
+  // Calendar Styles
   calendarNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -605,6 +569,67 @@ const styles = StyleSheet.create({
   },
   dayTextSelected: {
     color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  // Time Picker Styles
+  timePickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 250,
+    marginBottom: 20,
+  },
+  timeColumn: {
+    width: 80,
+    height: '100%',
+  },
+  timeColumnTitle: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    marginBottom: 10,
+  },
+  timeScroll: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  timeOption: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  timeOptionSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  timeOptionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  timeOptionTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  timeSeparator: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginHorizontal: 16,
+    paddingBottom: 20,
+  },
+  modalSubmitBtn: {
+    backgroundColor: COLORS.primary,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalSubmitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '700',
   },
 });
