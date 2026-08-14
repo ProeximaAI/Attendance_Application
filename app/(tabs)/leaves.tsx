@@ -32,8 +32,17 @@ const { width, width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('wi
 export default function LeavesScreen() {
   // Form state
   const [selectedType, setSelectedType] = useState<LeaveType>('Casual');
-  const [fromDate, setFromDate] = useState('06-07-2026');
-  const [toDate, setToDate] = useState('07-07-2026');
+
+  const getTodayFormatted = () => {
+    const d = new Date();
+    const dd = d.getDate() < 10 ? `0${d.getDate()}` : `${d.getDate()}`;
+    const mm = (d.getMonth() + 1) < 10 ? `0${d.getMonth() + 1}` : `${d.getMonth() + 1}`;
+    const yyyy = d.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
+  };
+
+  const [fromDate, setFromDate] = useState(getTodayFormatted());
+  const [toDate, setToDate] = useState(getTodayFormatted());
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [halfDayPeriod, setHalfDayPeriod] = useState<'1st half' | '2nd half'>('1st half');
   const [reason, setReason] = useState('');

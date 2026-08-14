@@ -8,6 +8,14 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Text } from '../../components/Themed';
 import { COLORS } from '../../constants/theme';
 
+// Import newly created components
+import AddressList from './components/AddressList';
+import ExperienceList from './components/ExperienceList';
+import EducationList from './components/EducationList';
+import FamilyList from './components/FamilyList';
+import WorkDetails from './components/WorkDetails';
+import DocumentManager from './components/DocumentManager';
+
 const OPTIONS = [
   { id: '1', title: 'Add Face' },
   { id: '2', title: 'Address' },
@@ -27,9 +35,8 @@ export default function PersonalDetailScreen() {
   const title = option ? option.title : 'Detail';
 
   const isAddFace = id === '1';
-  // Add plus symbol for Address, Experience, Education, Family details, Employee document
-  const showPlusSymbol = ['2', '3', '4', '5', '9'].includes(id as string);
 
+  // State for Add Face camera
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
@@ -47,29 +54,11 @@ export default function PersonalDetailScreen() {
     router.back();
   };
 
-  return (
-    <View style={styles.mainContainer}>
-      <StatusBar style="light" />
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: COLORS.primary }]} edges={['top']}>
-        <View style={[styles.header, { backgroundColor: COLORS.primary }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{title}</Text>
-          <View style={styles.rightButtonContainer}>
-            {showPlusSymbol ? (
-              <TouchableOpacity style={styles.plusButton} activeOpacity={0.7}>
-                <Ionicons name="add" size={24} color={COLORS.primary} />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.emptyRight} />
-            )}
-          </View>
-        </View>
-      </SafeAreaView>
-
-      <View style={styles.contentContainer}>
-        {isAddFace ? (
+  // Conditionally render the correct component based on ID
+  const renderContent = () => {
+    switch (id) {
+      case '1':
+        return (
           <View style={styles.cameraContainer}>
             {permission?.granted ? (
               <>
@@ -101,11 +90,49 @@ export default function PersonalDetailScreen() {
               </View>
             )}
           </View>
-        ) : (
+        );
+      case '2':
+        return <AddressList />;
+      case '3':
+        return <ExperienceList />;
+      case '4':
+        return <EducationList />;
+      case '5':
+        return <FamilyList />;
+      case '6':
+      case '7':
+      case '8':
+      case '10':
+        return <WorkDetails id={id as string} />;
+      case '9':
+        return <DocumentManager />;
+      default:
+        return (
           <View style={styles.emptyStateContainer}>
-            <Text style={styles.emptyStateText}>No data available!</Text>
+            <Text style={styles.emptyStateText}>Invalid Selection</Text>
           </View>
-        )}
+        );
+    }
+  };
+
+  return (
+    <View style={styles.mainContainer}>
+      <StatusBar style="light" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: COLORS.primary }]} edges={['top']}>
+        <View style={[styles.header, { backgroundColor: COLORS.primary }]}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{title}</Text>
+          <View style={styles.rightButtonContainer}>
+            {/* The right button container is kept for layout balance. Add/Plus buttons are now inside individual components */}
+            <View style={styles.emptyRight} />
+          </View>
+        </View>
+      </SafeAreaView>
+
+      <View style={styles.contentContainer}>
+        {renderContent()}
       </View>
     </View>
   );
@@ -133,7 +160,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '500', // Medium weight to match screenshot
+    fontWeight: '500', 
     color: '#FFFFFF',
     flex: 1,
     textAlign: 'center',
@@ -147,19 +174,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
   },
-  plusButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
   contentContainer: {
     flex: 1,
     backgroundColor: '#FAFAFA',
@@ -171,7 +185,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 15,
-    color: '#4B5563', // Gray text
+    color: '#4B5563', 
   },
   cameraContainer: {
     flex: 1,
