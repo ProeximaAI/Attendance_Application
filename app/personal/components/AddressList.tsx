@@ -169,7 +169,7 @@ export default function AddressList() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContainer: { padding: 16, paddingBottom: 80 },
   emptyText: { textAlign: 'center', marginTop: 20, color: '#6B7280' },

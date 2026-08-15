@@ -141,7 +141,7 @@ export default function PersonalDetailScreen() {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.primary,
   },
   safeArea: {
     // will be overridden inline
@@ -177,6 +177,9 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     backgroundColor: '#FAFAFA',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
   },
   emptyStateContainer: {
     flex: 1,

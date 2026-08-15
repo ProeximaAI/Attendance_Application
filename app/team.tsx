@@ -1,43 +1,41 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '../components/Themed';
 import { COLORS } from '../constants/theme';
-
-interface TeamMember {
-  id: string;
-  name: string;
-  role: string;
-  department: string;
-  status: 'In Office' | 'On Leave' | 'Field Work' | 'Remote';
-  isManager?: boolean;
-}
-
-const TEAM_MEMBERS: TeamMember[] = [
-  { id: '1', name: 'Rajesh Sharma', role: 'Senior Engineering Manager', department: 'Technology', status: 'In Office', isManager: true },
-  { id: '2', name: 'Ananya Iyer', role: 'Senior UI/UX Designer', department: 'Design', status: 'In Office' },
-  { id: '3', name: 'Vikram Patel', role: 'Lead Backend Engineer', department: 'Technology', status: 'Remote' },
-  { id: '4', name: 'Priya Nair', role: 'QA Lead', department: 'Quality Assurance', status: 'In Office' },
-  { id: '5', name: 'Siddharth Rao', role: 'DevOps Engineer', department: 'Infrastructure', status: 'Field Work' },
-  { id: '6', name: 'Neha Gupta', role: 'Frontend Developer', department: 'Technology', status: 'On Leave' },
-  { id: '7', name: 'Amit Verma', role: 'Product Manager', department: 'Product', status: 'In Office' },
-];
+import { teamService, TeamMemberResponse } from '../services/teamService';
 
 export default function TeamScreen() {
-  const [isGridView, setIsGridView] = React.useState(false);
-  const manager = TEAM_MEMBERS.find(m => m.isManager);
-  const team = TEAM_MEMBERS.filter(m => !m.isManager);
+  const [isGridView, setIsGridView] = useState(false);
+  const [team, setTeam] = useState<TeamMemberResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getStatusColor = (status: TeamMember['status']) => {
-    switch (status) {
-      case 'In Office': return { bg: '#DCFCE7', text: '#15803D' };
-      case 'Remote': return { bg: '#DBEAFE', text: '#1D4ED8' };
-      case 'Field Work': return { bg: '#FEF3C7', text: '#D97706' };
-      case 'On Leave': return { bg: '#FEE2E2', text: '#B91C1C' };
+  useEffect(() => {
+    fetchTeam();
+  }, []);
+
+  const fetchTeam = async () => {
+    try {
+      setIsLoading(true);
+      const response = await teamService.getTeam();
+      if (response.success && response.data?.team) {
+        setTeam(response.data.team);
+      } else {
+        Alert.alert("Error", response.message || "Failed to fetch team data");
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch team:', error);
+      Alert.alert("Error", error.message || "An error occurred while fetching the team.");
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const getStatusColor = () => {
+    return { bg: '#DCFCE7', text: '#15803D' };
   };
 
   return (
@@ -56,58 +54,40 @@ export default function TeamScreen() {
       </SafeAreaView>
 
       <View style={styles.contentContainer}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Manager Section */}
-          <Text style={styles.sectionHeader}>Reporting Manager</Text>
-          {manager && (
-            <View style={isGridView ? styles.gridContainer : null}>
-              <View style={[isGridView ? styles.gridMemberCard : styles.memberCard, isGridView ? styles.gridManagerCard : styles.managerCard]}>
-                <View style={[isGridView ? styles.gridAvatarCircle : styles.avatarCircle, { backgroundColor: '#EEF2FF' }]}>
-                  <Ionicons name="person" size={isGridView ? 28 : 24} color="#4338CA" />
-                </View>
-                <View style={isGridView ? styles.gridMemberInfo : styles.memberInfo}>
-                  <View style={isGridView ? styles.gridNameRow : styles.nameRow}>
-                    <Text style={isGridView ? styles.gridMemberName : styles.memberName} numberOfLines={1}>{manager.name}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(manager.status).bg, marginTop: isGridView ? 6 : 0 }]}>
-                      <Text style={[styles.statusText, { color: getStatusColor(manager.status).text, fontSize: isGridView ? 9 : 11 }]}>
-                        {manager.status}
-                      </Text>
-                    </View>
-                  </View>
-                  {!isGridView && <Text style={styles.memberRole}>{manager.role}</Text>}
-                  {!isGridView && <Text style={styles.memberDept}>{manager.department}</Text>}
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* Team Members Section */}
-          <Text style={[styles.sectionHeader, { marginTop: 16 }]}>Team Members ({team.length})</Text>
-          <View style={isGridView ? styles.gridContainer : null}>
-            {team.map((member) => {
-              const statusStyle = getStatusColor(member.status);
-              return (
-                <TouchableOpacity key={member.id} style={isGridView ? styles.gridMemberCard : styles.memberCard} activeOpacity={0.7}>
-                  <View style={[isGridView ? styles.gridAvatarCircle : styles.avatarCircle, { backgroundColor: '#FFFBEB' }]}>
-                    <Ionicons name="person-outline" size={isGridView ? 26 : 22} color={COLORS.primary} />
-                  </View>
-                  <View style={isGridView ? styles.gridMemberInfo : styles.memberInfo}>
-                    <View style={isGridView ? styles.gridNameRow : styles.nameRow}>
-                      <Text style={isGridView ? styles.gridMemberName : styles.memberName} numberOfLines={1}>{member.name}</Text>
-                      <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg, marginTop: isGridView ? 6 : 0 }]}>
-                        <Text style={[styles.statusText, { color: statusStyle.text, fontSize: isGridView ? 9 : 11 }]}>
-                          {member.status}
-                        </Text>
-                      </View>
-                    </View>
-                    {!isGridView && <Text style={styles.memberRole}>{member.role}</Text>}
-                    {!isGridView && <Text style={styles.memberDept}>{member.department}</Text>}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+        {isLoading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
-        </ScrollView>
+        ) : (
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Team Members Section */}
+            <Text style={[styles.sectionHeader]}>Employees ({team.length})</Text>
+            <View style={isGridView ? styles.gridContainer : null}>
+              {team.map((member) => {
+                const statusStyle = getStatusColor();
+                return (
+                  <TouchableOpacity key={member.id} style={isGridView ? styles.gridMemberCard : styles.memberCard} activeOpacity={0.7}>
+                    <View style={[isGridView ? styles.gridAvatarCircle : styles.avatarCircle, { backgroundColor: '#FFFBEB' }]}>
+                      <Ionicons name="person-outline" size={isGridView ? 26 : 22} color={COLORS.primary} />
+                    </View>
+                    <View style={isGridView ? styles.gridMemberInfo : styles.memberInfo}>
+                      <View style={isGridView ? styles.gridNameRow : styles.nameRow}>
+                        <Text style={isGridView ? styles.gridMemberName : styles.memberName} numberOfLines={1}>{member.name}</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg, marginTop: isGridView ? 6 : 0 }]}>
+                          <Text style={[styles.statusText, { color: statusStyle.text, fontSize: isGridView ? 9 : 11 }]}>
+                            Active
+                          </Text>
+                        </View>
+                      </View>
+                      {!isGridView && <Text style={styles.memberRole}>{member.designation}</Text>}
+                      {!isGridView && <Text style={styles.memberDept}>{member.org_path}</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+        )}
       </View>
     </View>
   );
@@ -147,6 +127,9 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     backgroundColor: '#F8F9FC',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
   },
   scrollContent: {
     padding: 16,
