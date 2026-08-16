@@ -1,13 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View, Alert } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Alert, Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../../components/Themed';
 import { COLORS, SIZES } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
+import { KycData, kycService } from '../../services/kycService';
+import { getWorkDetails } from '../../services/profileService';
+import { WorkDetails } from '../../types/profile';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +38,34 @@ export default function ProfileScreen() {
     );
   };
 
+  const [kycData, setKycData] = useState<KycData | null>(null);
+  const [workDetails, setWorkDetails] = useState<WorkDetails | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const fetchAllData = async () => {
+        try {
+          const res = await kycService.getMyKyc();
+          if (isActive && res.success && res.data) {
+            setKycData(res.data);
+          }
+        } catch (e) {
+          console.log('No KYC data found or error fetching');
+        }
+
+        try {
+          const wd = await getWorkDetails();
+          if (isActive) setWorkDetails(wd);
+        } catch (e: any) {
+          console.log('No WorkDetails found or error fetching:', e?.response?.status || e.message);
+        }
+      };
+      fetchAllData();
+      return () => { isActive = false; };
+    }, [])
+  );
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -42,7 +73,7 @@ export default function ProfileScreen() {
         {/* Full-width Portrait Header (Like Image 1) */}
         <View style={styles.headerContainer}>
           <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=950&auto=format&fit=crop&crop=faces&q=80' }}
+            source={{ uri: kycData?.profile_photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=950&auto=format&fit=crop&crop=faces&q=80' }}
             style={styles.portraitImage}
             resizeMode="cover"
           />
@@ -55,6 +86,7 @@ export default function ProfileScreen() {
           />
 
           {/* Floating Top Bar Buttons safely positioned below OS status bar */}
+          {/* 
           <View style={[styles.floatingTopBar, { top: Math.max(insets.top, 16) + 6 }]}>
             <TouchableOpacity style={styles.circleButton} activeOpacity={0.7}>
               <Ionicons name="chevron-back" size={22} color={COLORS.text} />
@@ -63,11 +95,12 @@ export default function ProfileScreen() {
               <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.text} />
             </TouchableOpacity>
           </View>
+          */}
 
           {/* Name & Role positioned over the bottom fade */}
           <View style={styles.nameContainer}>
-            <Text style={styles.userName}>{user?.name || 'Swarup Kumar Behera'}</Text>
-            <Text style={styles.userRole}>{user?.role || 'Software Developer'}</Text>
+            <Text style={styles.userName}>{user?.name || 'Employee Name'}</Text>
+            <Text style={styles.userRole}>{workDetails?.designation?.name || user?.role || 'Employee'}</Text>
           </View>
         </View>
 
@@ -79,7 +112,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.pillTextContainer}>
               <Text style={styles.pillLabel}>Birthday</Text>
-              <Text style={styles.pillValue}>05 Mar 1992</Text>
+              <Text style={styles.pillValue}>{kycData?.date_of_birth || 'Not Set'}</Text>
             </View>
           </View>
 
@@ -89,7 +122,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.pillTextContainer}>
               <Text style={styles.pillLabel}>Phone Number</Text>
-              <Text style={styles.pillValue} numberOfLines={1}>+91 98765 43210</Text>
+              <Text style={styles.pillValue} numberOfLines={1}>{(user as any)?.phone || 'Not Set'}</Text>
             </View>
           </View>
         </View>
@@ -197,6 +230,7 @@ export default function ProfileScreen() {
 
             <View style={styles.listDivider} />
 
+            {/* 
             <TouchableOpacity style={styles.listItem} activeOpacity={0.7} onPress={() => router.push('/off-boarding')}>
               <View style={[styles.listIconCircle, { backgroundColor: '#FEF2F2' }]}>
                 <Ionicons name="exit-outline" size={20} color="#EF4444" />
@@ -207,6 +241,7 @@ export default function ProfileScreen() {
               </View>
               <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
             </TouchableOpacity>
+            */}
 
             {/* 
             <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>

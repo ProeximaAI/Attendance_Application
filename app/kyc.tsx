@@ -1,47 +1,216 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '../components/Themed';
+import { KycData, kycService } from '../services/kycService';
 
-const PRIMARY_COLOR = '#4338CA'; 
+const PRIMARY_COLOR = '#4338CA';
 const TEXT_COLOR = '#1E1B4B';
 
 export default function KycScreen() {
+  const [kycData, setKycData] = useState<KycData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchKycData = async () => {
+    setLoading(true);
+    try {
+      const res = await kycService.getMyKyc();
+      if (res.success && res.data) {
+        setKycData(res.data);
+        console.log("=== COMPLETE KYC DATA FROM BACKEND ===", res.data);
+      } else {
+        setKycData(null);
+      }
+    } catch (error) {
+      console.error('Error fetching KYC data:', error);
+      setKycData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchKycData();
+    }, [])
+  );
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete KYC Data",
+      "Are you sure you want to permanently delete all your KYC data and profile photo?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const res = await kycService.deleteKyc();
+              if (res.success) {
+                setKycData(null);
+                Alert.alert("Success", "KYC data successfully deleted.");
+              }
+            } catch (error) {
+              console.error('Error deleting KYC data:', error);
+              Alert.alert("Error", "Failed to delete KYC data.");
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const hasData = kycData && (
+    kycData.aadhaar_last4 ||
+    kycData.pan_last4 ||
+    kycData.esic_last4 ||
+    kycData.pf_last4 ||
+    kycData.bank_account_last4 ||
+    kycData.profile_photo
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={PRIMARY_COLOR} />
-      
+
       {/* Header with Blue Background */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>KYC Details</Text>
-        <View style={styles.headerRightSpacer} />
+        <View style={styles.headerRightSpacer}>
+          {hasData && (
+            <TouchableOpacity onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Main Content Area with White Curved Background */}
       <View style={styles.contentContainer}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={64} color="#9CA3AF" />
-            <Text style={styles.emptyTitle}>No KYC Documents Found</Text>
-            <Text style={styles.emptySubtitle}>Tap the + button to upload a new document for identity verification.</Text>
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color={PRIMARY_COLOR} />
           </View>
-        </ScrollView>
-        
+        ) : hasData ? (
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Profile Photo Display */}
+            {kycData?.profile_photo && (
+              <View style={styles.photoContainer}>
+                <Image
+                  source={{ uri: kycData.profile_photo }}
+                  style={styles.profilePhoto}
+                />
+                <Text style={styles.photoLabel}>Profile Photo</Text>
+              </View>
+            )}
+
+            {kycData?.date_of_birth && (
+              <View style={styles.optionCard}>
+                <View style={[styles.optionIconContainer, { backgroundColor: '#EEF2FF' }]}>
+                  <Ionicons name="calendar-outline" size={20} color={PRIMARY_COLOR} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.optionTitle}>Date of Birth</Text>
+                  <Text style={styles.optionValue}>{kycData.date_of_birth}</Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              </View>
+            )}
+
+            {kycData?.aadhaar_last4 && (
+              <View style={styles.optionCard}>
+                <View style={styles.optionIconContainer}>
+                  <Ionicons name="card-outline" size={20} color={PRIMARY_COLOR} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.optionTitle}>Aadhaar Card</Text>
+                  <Text style={styles.optionValue}>**** **** {kycData.aadhaar_last4}</Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              </View>
+            )}
+
+            {kycData?.pan_last4 && (
+              <View style={styles.optionCard}>
+                <View style={styles.optionIconContainer}>
+                  <Ionicons name="documents-outline" size={20} color={PRIMARY_COLOR} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.optionTitle}>PAN Card</Text>
+                  <Text style={styles.optionValue}>******{kycData.pan_last4}</Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              </View>
+            )}
+
+            {kycData?.bank_account_last4 && (
+              <View style={styles.optionCard}>
+                <View style={styles.optionIconContainer}>
+                  <Ionicons name="business-outline" size={20} color={PRIMARY_COLOR} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.optionTitle}>{kycData.bank_name_last4 || 'Bank Details'}</Text>
+                  <Text style={styles.optionValue}>
+                    A/C ****{kycData.bank_account_last4}
+                    {kycData.ifsc_code_last4 ? ` | IFSC: ****${kycData.ifsc_code_last4}` : ''}
+                  </Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              </View>
+            )}
+
+            {kycData?.pf_last4 && (
+              <View style={styles.optionCard}>
+                <View style={styles.optionIconContainer}>
+                  <Ionicons name="briefcase-outline" size={20} color={PRIMARY_COLOR} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.optionTitle}>PF Number</Text>
+                  <Text style={styles.optionValue}>****{kycData.pf_last4}</Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              </View>
+            )}
+
+            {kycData?.esic_last4 && (
+              <View style={styles.optionCard}>
+                <View style={styles.optionIconContainer}>
+                  <Ionicons name="medical-outline" size={20} color={PRIMARY_COLOR} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.optionTitle}>ESIC Number</Text>
+                  <Text style={styles.optionValue}>****{kycData.esic_last4}</Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              </View>
+            )}
+          </ScrollView>
+        ) : (
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="document-text-outline" size={64} color="#9CA3AF" />
+              <Text style={styles.emptyTitle}>No KYC Documents Found</Text>
+              <Text style={styles.emptySubtitle}>Tap the + button to upload a new document for identity verification.</Text>
+            </View>
+          </ScrollView>
+        )}
+
         {/* Floating Action Button */}
-        <TouchableOpacity 
-          style={styles.fab} 
+        <TouchableOpacity
+          style={styles.fab}
           activeOpacity={0.8}
-          onPress={() => {
-            // Implement KYC upload/add logic here later
-            console.log("Add KYC pressed");
-          }}
+          onPress={() => router.push('/kyc-form')}
         >
-          <Ionicons name="add" size={30} color="#FFFFFF" />
+          <Ionicons name={hasData ? "pencil" : "add"} size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -72,6 +241,7 @@ const styles = StyleSheet.create({
   headerRightSpacer: {
     padding: 4,
     width: 32,
+    alignItems: 'flex-end',
   },
   contentContainer: {
     flex: 1,
@@ -83,8 +253,65 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingTop: 24,
-    paddingBottom: 40,
+    paddingBottom: 80, // Extra padding for FAB
     flexGrow: 1,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  profilePhoto: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: PRIMARY_COLOR,
+    marginBottom: 8,
+  },
+  photoLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  optionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  optionIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFBEB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  optionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: TEXT_COLOR,
+  },
+  optionValue: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
   },
   emptyContainer: {
     flex: 1,

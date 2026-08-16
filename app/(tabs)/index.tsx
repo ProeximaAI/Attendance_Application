@@ -1,13 +1,16 @@
 import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-// Keep the linear-gradient import as requested, but don't use it.
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Text } from '../../components/Themed';
 import { COLORS, SIZES } from '../../constants/theme';
 import { CheckInContext } from '../../context/CheckInContext';
 import { useAuth } from '../../hooks/useAuth';
 import { attendanceService, AttendanceHistoryItem, MonthStats } from '../../services/attendanceService';
+import { kycService, KycData } from '../../services/kycService';
+import { getWorkDetails } from '../../services/profileService';
+import { WorkDetails } from '../../types/profile';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -17,6 +20,32 @@ export default function HomeScreen() {
   const [weeklyHistory, setWeeklyHistory] = useState<AttendanceHistoryItem[]>([]);
   const [monthStats, setMonthStats] = useState<MonthStats | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  
+  const [kycData, setKycData] = useState<KycData | null>(null);
+  const [workDetails, setWorkDetails] = useState<WorkDetails | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const fetchUserData = async () => {
+        try {
+          const kycRes = await kycService.getMyKyc();
+          if (isActive && kycRes.success && kycRes.data) setKycData(kycRes.data);
+        } catch (e) {
+          console.log('No KYC data on home');
+        }
+
+        try {
+          const wd = await getWorkDetails();
+          if (isActive) setWorkDetails(wd);
+        } catch (e: any) {
+          console.log('No work details on home:', e?.response?.status || e.message);
+        }
+      };
+      fetchUserData();
+      return () => { isActive = false; };
+    }, [])
+  );
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -147,12 +176,12 @@ export default function HomeScreen() {
         <View style={styles.headerContainer}>
           <View style={styles.headerProfile}>
             <Image
-              source={{ uri: 'https://i.pravatar.cc/150?img=11' }} // Placeholder for user image
+              source={{ uri: kycData?.profile_photo || 'https://i.pravatar.cc/150?img=11' }}
               style={styles.profileImage}
             />
             <View style={styles.profileDetails}>
-              <Text style={styles.profileName}>{user?.name || 'Michael Mitc'}</Text>
-              <Text style={styles.profileRole}>{user?.role || 'Lead UI/UX Designer'}</Text>
+              <Text style={styles.profileName}>{user?.name || 'Employee Name'}</Text>
+              <Text style={styles.profileRole}>{workDetails?.designation?.name || user?.role || 'Employee'}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.notificationButton}>
@@ -254,17 +283,17 @@ export default function HomeScreen() {
             const itemDate = new Date(item.date);
             const dateNumber = itemDate.getDate().toString().padStart(2, '0');
             const dateDay = itemDate.toLocaleDateString('en-US', { weekday: 'short' });
-            
-            const checkInStr = item.attendance_data?.checkin_time 
-              ? new Date(item.attendance_data.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+
+            const checkInStr = item.attendance_data?.checkin_time
+              ? new Date(item.attendance_data.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
               : '--:--';
-              
-            const checkOutStr = item.attendance_data?.checkout_time 
-              ? new Date(item.attendance_data.checkout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+
+            const checkOutStr = item.attendance_data?.checkout_time
+              ? new Date(item.attendance_data.checkout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
               : '--:--';
-              
-            const totalHoursStr = item.attendance_data?.total_hours 
-              ? `${item.attendance_data.total_hours}` 
+
+            const totalHoursStr = item.attendance_data?.total_hours
+              ? `${item.attendance_data.total_hours}`
               : '--:--';
 
             return (

@@ -6,6 +6,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import * as Location from 'expo-location';
 import { attendanceService } from '../services/attendanceService';
+import { useAuth } from '../hooks/useAuth';
 
 const { height } = Dimensions.get('window');
 
@@ -51,7 +52,8 @@ export const CheckInProvider = ({ children }: { children: ReactNode }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isCheckedOut, setIsCheckedOut] = useState(false);
-  
+  const { user } = useAuth();
+
   const fetchStatus = async () => {
     try {
       const response = await attendanceService.getStatus();
@@ -71,13 +73,28 @@ export const CheckInProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     } catch (e) {
-      console.log('Failed to fetch attendance status', e);
+      // Intentionally swallow the log if it's a known non-fatal token issue to avoid cluttering the console
+      if (e instanceof Error && e.message === 'No refresh token available locally') {
+        // user is logged out, no action needed
+      } else {
+        console.log('Failed to fetch attendance status', e);
+      }
     }
   };
 
   useEffect(() => {
-    fetchStatus();
-  }, []);
+    // Only attempt to fetch attendance if the user exists (is logged in)
+    if (user) {
+      fetchStatus();
+    } else {
+      // Reset state if user logs out
+      setIsCheckedIn(false);
+      setIsCheckedOut(false);
+      setPunchInTime(null);
+      setPunchOutTime(null);
+      setAttendanceStatus(null);
+    }
+  }, [user]);
   
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);

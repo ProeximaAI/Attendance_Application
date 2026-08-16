@@ -1,17 +1,17 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
-import { Dimensions, Image, Modal, ScrollView, StyleSheet, TouchableOpacity, View, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import React, { useMemo, useRef, useState } from 'react';
+import { Alert, Dimensions, Image, Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MonthlySummaryCard } from '../../components/MonthlySummaryCard';
 import { Text } from '../../components/Themed';
-import { COLORS } from '../../constants/theme';
 import { API_CONFIG } from '../../constants/api';
+import { COLORS } from '../../constants/theme';
+import { AttendanceHistoryItem, attendanceService, CalendarDayRecord } from '../../services/attendanceService';
 import { TokenManager } from '../../utils/tokenManager';
-import { attendanceService, AttendanceHistoryItem, CalendarDayRecord } from '../../services/attendanceService';
 
 interface AttendanceLog {
   day: number;
@@ -104,24 +104,26 @@ export default function LogsScreen() {
 
   const [calendarData, setCalendarData] = useState<Record<number, CalendarDayRecord>>({});
 
-  React.useEffect(() => {
-    const fetchCalendarData = async () => {
-      try {
-        const response = await attendanceService.getCalendar(year, month + 1);
-        if (response.success && response.data) {
-          const map: Record<number, CalendarDayRecord> = {};
-          response.data.forEach(record => {
-            const day = parseInt(record.date.split('-')[2], 10);
-            map[day] = record;
-          });
-          setCalendarData(map);
-        }
-      } catch (error) {
-        console.error('Failed to fetch calendar data in logs', error);
-      }
-    };
-    fetchCalendarData();
-  }, [year, month]);
+  // React.useEffect(() => {
+  //   const fetchCalendarData = async () => {
+  //     try {
+  //       const response = await attendanceService.getCalendar(year, month + 1);
+  //       if (response.success && response.data) {
+  //         const map: Record<number, CalendarDayRecord> = {};
+  //         response.data.forEach(record => {
+  //           const day = parseInt(record.date.split('-')[2], 10);
+  //           map[day] = record;
+  //         });
+  //         setCalendarData(map);
+  //       }
+  //     } catch (error) {
+  //       console.error('Failed to fetch calendar data in logs', error);
+  //     }
+  //   };
+  //   fetchCalendarData();
+  // }, [year, month]);
+
+
 
   // Calendar Grid Calculations
   const calendarGrid = useMemo(() => {
@@ -202,13 +204,74 @@ export default function LogsScreen() {
     totalDays: 0,
   });
 
+  // React.useEffect(() => {
+  //   const fetchMonthlySummary = async () => {
+  //     try {
+  //       const [historyRes, hoursRes] = await Promise.all([
+  //         attendanceService.getMonthlyHistory(year, month + 1),
+  //         attendanceService.getMonthlySummaryHours(year, month + 1)
+  //       ]);
+
+  //       let present = 0;
+  //       let leave = 0;
+  //       let late = 0;
+  //       let wfh = 0;
+  //       let totalDays = 0;
+
+  //       if (historyRes.success && historyRes.data) {
+  //         historyRes.data.forEach((day: any) => {
+  //           if (day.status === 'present') present++;
+  //           else if (day.status === 'leave') leave++;
+  //           else if (day.status === 'late') late++;
+  //           else if (day.status === 'wfh') wfh++;
+  //         });
+  //         totalDays = historyRes.data.length;
+  //       }
+
+  //       let totalHours = '0h 00m';
+  //       if (hoursRes.success && hoursRes.data) {
+  //         const decimalHours = hoursRes.data.total_working_hours || 0;
+  //         const h = Math.floor(decimalHours);
+  //         const m = Math.round((decimalHours - h) * 60);
+  //         totalHours = `${h}h ${m.toString().padStart(2, '0')}m`;
+  //       }
+
+  //       setMonthlySummaryStats({
+  //         presentDays: present,
+  //         leaveDays: leave,
+  //         lateDays: late,
+  //         wfhDays: wfh,
+  //         totalWorkHours: totalHours,
+  //         totalDays: totalDays,
+  //       });
+  //     } catch (error) {
+  //       console.error('Failed to fetch monthly summary in logs', error);
+  //     }
+  //   };
+  //   fetchMonthlySummary();
+  // }, [year, month]);
+
   React.useEffect(() => {
-    const fetchMonthlySummary = async () => {
+    const fetchDataSequentially = async () => {
+      // 1. Fetch Calendar Data First
       try {
-        const [historyRes, hoursRes] = await Promise.all([
-          attendanceService.getMonthlyHistory(year, month + 1),
-          attendanceService.getMonthlySummaryHours(year, month + 1)
-        ]);
+        const calResponse = await attendanceService.getCalendar(year, month + 1);
+        if (calResponse.success && calResponse.data) {
+          const map: Record<number, CalendarDayRecord> = {};
+          calResponse.data.forEach(record => {
+            const day = parseInt(record.date.split('-')[2], 10);
+            map[day] = record;
+          });
+          setCalendarData(map);
+        }
+      } catch (error) {
+        console.error('Failed to fetch calendar data in logs', error);
+      }
+
+      // 2. Then Fetch Monthly History and Hours
+      try {
+        const historyRes = await attendanceService.getMonthlyHistory(year, month + 1);
+        const hoursRes = await attendanceService.getMonthlySummaryHours(year, month + 1);
 
         let present = 0;
         let leave = 0;
@@ -246,29 +309,31 @@ export default function LogsScreen() {
         console.error('Failed to fetch monthly summary in logs', error);
       }
     };
-    fetchMonthlySummary();
+
+    fetchDataSequentially();
   }, [year, month]);
+
 
   const handleExportMonthlySummary = async (format: 'PDF' | 'EXCEL') => {
     if (format === 'EXCEL') {
       try {
         const token = await TokenManager.getAccessToken();
         const url = `${API_CONFIG.BASE_URL}/attendance/my-summary/export?year=${year}&month=${month + 1}`;
-        
+
         const fileName = `Attendance_Summary_${year}_${month + 1}.csv`;
         const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-        
+
         const downloadRes = await FileSystem.downloadAsync(url, fileUri, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
-        
+
         if (downloadRes.status !== 200) {
           Alert.alert('Download Failed', 'Failed to generate the export file.');
           return;
         }
-        
+
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(downloadRes.uri);
         } else {
@@ -397,16 +462,16 @@ export default function LogsScreen() {
                 const dayName = itemDate.toLocaleDateString('en-US', { weekday: 'short' });
                 const isHighlighted = itemDate.getDate() === selectedDay;
 
-                const checkInStr = item.attendance_data?.checkin_time 
-                  ? new Date(item.attendance_data.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+                const checkInStr = item.attendance_data?.checkin_time
+                  ? new Date(item.attendance_data.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
                   : '--:--';
-                  
-                const checkOutStr = item.attendance_data?.checkout_time 
-                  ? new Date(item.attendance_data.checkout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+
+                const checkOutStr = item.attendance_data?.checkout_time
+                  ? new Date(item.attendance_data.checkout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
                   : '--:--';
-                  
-                const totalHoursStr = item.attendance_data?.total_hours 
-                  ? `${item.attendance_data.total_hours}` 
+
+                const totalHoursStr = item.attendance_data?.total_hours
+                  ? `${item.attendance_data.total_hours}`
                   : '--:--';
 
                 if (isHighlighted) {
@@ -600,15 +665,15 @@ export default function LogsScreen() {
               const hoursRaw = attendanceData?.work_hours || attendanceData?.total_hours;
 
               const checkInStr = checkInRaw
-                ? new Date(checkInRaw).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+                ? new Date(checkInRaw).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
                 : '--:--';
-              
+
               const checkOutStr = checkOutRaw
-                ? new Date(checkOutRaw).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+                ? new Date(checkOutRaw).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
                 : '--:--';
-                
-              const totalHoursStr = hoursRaw 
-                ? `${hoursRaw}` 
+
+              const totalHoursStr = hoursRaw
+                ? `${hoursRaw}`
                 : '--:--';
 
               const statusColor = dayLog ? getStatusColor(dayLog.status, dayLog.leave_type) : COLORS.textMuted;
