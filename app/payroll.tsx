@@ -12,12 +12,13 @@ interface PayrollOption {
   title: string;
   subtitle: string;
   icon: keyof typeof Ionicons.glyphMap;
+  route?: string;
 }
 
 const OPTIONS: PayrollOption[] = [
-  { id: '1', title: 'Salary Slip', subtitle: 'View & download monthly payslips', icon: 'document-text-outline' },
-  { id: '2', title: 'My Pay', subtitle: 'Current earnings & net take-home', icon: 'cash-outline' },
-  { id: '3', title: 'Salary Structure', subtitle: 'Breakdown of allowances & deductions', icon: 'pie-chart-outline' },
+  { id: '1', title: 'Salary Slip', subtitle: 'View & download monthly payslips', icon: 'document-text-outline', route: '/payroll/salary-slips' },
+  { id: '2', title: 'My Pay', subtitle: 'Current earnings & net take-home', icon: 'cash-outline', route: '/payroll/my-pay' },
+  { id: '3', title: 'Salary Structure', subtitle: 'Breakdown of allowances & deductions', icon: 'pie-chart-outline', route: '/payroll/salary-structure' },
 ];
 
 export default function PayrollScreen() {
@@ -41,7 +42,12 @@ export default function PayrollScreen() {
       <View style={styles.contentContainer}>
         <ScrollView contentContainerStyle={isGridView ? styles.scrollContentGrid : styles.scrollContent} showsVerticalScrollIndicator={false}>
           {OPTIONS.map((item) => (
-            <TouchableOpacity key={item.id} style={isGridView ? styles.gridOptionCard : styles.optionCard} activeOpacity={0.7}>
+            <TouchableOpacity 
+              key={item.id} 
+              style={isGridView ? styles.gridOptionCard : styles.optionCard} 
+              activeOpacity={0.7}
+              onPress={() => item.route && router.push(item.route as any)}
+            >
               <View style={isGridView ? styles.gridIconContainer : styles.iconContainer}>
                 <Ionicons name={item.icon as any} size={isGridView ? 26 : 22} color={COLORS.primary} />
               </View>

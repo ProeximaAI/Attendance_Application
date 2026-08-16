@@ -17,8 +17,7 @@ interface FinanceOption {
 const OPTIONS: FinanceOption[] = [
   { id: '1', title: 'My Expense', subtitle: 'Claims & reimbursement requests', icon: 'receipt-outline' },
   { id: '2', title: 'My Advance', subtitle: 'Salary advance & status', icon: 'wallet-outline' },
-  { id: '3', title: 'My Loan', subtitle: 'Active company loans & EMI', icon: 'card-outline' },
-  { id: '4', title: 'My Penalty', subtitle: 'Deductions & late penalties', icon: 'alert-circle-outline' },
+  { id: '3', title: 'My Incentive', subtitle: 'Bonuses & rewards', icon: 'gift-outline' },
 ];
 
 export default function FinanceScreen() {

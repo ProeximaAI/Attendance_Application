@@ -117,6 +117,19 @@ export default function ProfileScreen() {
 
             <View style={styles.listDivider} />
 
+            <TouchableOpacity style={styles.listItem} activeOpacity={0.7} onPress={() => router.push('/kyc')}>
+              <View style={[styles.listIconCircle, { backgroundColor: '#F0FDF4' }]}>
+                <Ionicons name="document-text-outline" size={20} color="#16A34A" />
+              </View>
+              <View style={styles.listTextContainer}>
+                <Text style={styles.listTitle}>KYC</Text>
+                <Text style={styles.listSubtitle}>Identity & Verification</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <View style={styles.listDivider} />
+
             <TouchableOpacity style={styles.listItem} activeOpacity={0.7} onPress={() => router.push('/team')}>
               <View style={[styles.listIconCircle, { backgroundColor: '#ECFDF5' }]}>
                 <Ionicons name="people-outline" size={20} color="#10B981" />
@@ -156,6 +169,7 @@ export default function ProfileScreen() {
 
             <View style={styles.listDivider} />
 
+            {/* 
             <TouchableOpacity style={styles.listItem} activeOpacity={0.7} onPress={() => router.push('/attendance-menu')}>
               <View style={[styles.listIconCircle, { backgroundColor: '#EEF2FF' }]}>
                 <Ionicons name="calendar-outline" size={20} color="#4F46E5" />
@@ -168,6 +182,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <View style={styles.listDivider} />
+            */}
 
             <TouchableOpacity style={styles.listItem} activeOpacity={0.7} onPress={() => router.push('/payroll')}>
               <View style={[styles.listIconCircle, { backgroundColor: '#ECFDF5' }]}>
@@ -193,8 +208,7 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <View style={styles.listDivider} />
-
+            {/* 
             <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>
               <View style={[styles.listIconCircle, { backgroundColor: '#F5F3FF' }]}>
                 <Ionicons name="id-card-outline" size={20} color="#8B5CF6" />
@@ -233,6 +247,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <View style={styles.listDivider} />
+            */}
 
             <TouchableOpacity style={styles.listItem} activeOpacity={0.7} onPress={handleLogout}>
               <View style={[styles.listIconCircle, { backgroundColor: '#FEF2F2' }]}>
@@ -248,6 +263,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Bottom Square Cards Side-by-Side (This Month Stats) */}
+        {/* 
         <View style={styles.bottomCardsRow}>
           <View style={styles.bottomCard}>
             <View style={styles.bottomCardTopRow}>
@@ -275,6 +291,7 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+        */}
 
         {/* Footer Links */}
         <View style={styles.footerLinks}>
