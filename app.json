@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ProeximaAI_Attendance_App",
+    "name": "Attendify",
     "slug": "ProeximaAI_Attendance_App",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/images/logo.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.swarupbehera.ProeximaAI_Attendance_App",
+      "package": "com.attendify.proeximaai",
       "permissions": [
         "android.permission.CAMERA"
       ]
